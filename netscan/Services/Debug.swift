@@ -1,9 +1,8 @@
 import Foundation
 
-@inline(__always)
+@preconcurrency @inline(__always)
 func debugLog(_ message: @autoclosure () -> String) {
     #if DEBUG
     print(message())
     #endif
 }
-
