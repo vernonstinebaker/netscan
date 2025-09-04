@@ -265,31 +265,27 @@ final class ScanViewModel: ObservableObject {
                 let vendor = await self.ouiService.findVendor(for: mac)
                 devices[index].manufacturer = vendor
 
-                // Re-classify based on hostname/vendor/ports
-                let classified = await classifier.classify(hostname: devices[index].hostname, vendor: vendor, openPorts: devices[index].openPorts)
+                // Re-classify based on hostname/vendor/ports with confidence scoring
+                let (classified, confidence) = await classifier.classifyWithConfidence(
+                    hostname: devices[index].hostname, 
+                    vendor: vendor, 
+                    openPorts: devices[index].openPorts,
+                    services: devices[index].services
+                )
                 devices[index].deviceType = classified
-                // If the device currently only has the IP as its name, prefer vendor or type as a friendly name
-                if devices[index].name == devices[index].ipAddress {
-                    if let vendor = vendor { devices[index].name = vendor }
-                    else if classified != .unknown { devices[index].name = classified.rawValue.capitalized }
-                }
+                devices[index].confidence = confidence
+                
+                // Generate fingerprints
+                let fingerprints = await classifier.fingerprintServices(
+                    services: devices[index].services,
+                    openPorts: devices[index].openPorts
+                )
+                devices[index].fingerprints = fingerprints
             }
             print("✅ Updated device: \(devices[index].name) (\(ipAddress))")
         } else {
             print("🆕 Creating new device for IP: \(ipAddress)")
             let vendor = arpMap[ipAddress] != nil ? await self.ouiService.findVendor(for: arpMap[ipAddress]!) : nil
-            // Classify device if possible
-            let classifiedType = await classifier.classify(hostname: nil, vendor: vendor, openPorts: ports)
-
-            let friendlyName: String
-            if let vendor = vendor {
-                friendlyName = vendor
-            } else if classifiedType != .unknown {
-                friendlyName = classifiedType.rawValue.capitalized
-            } else {
-                friendlyName = ipAddress
-            }
-
             // Deduplicate incoming services by (type, port) and prefer longer names
             var uniqueByKey: [String: NetworkService] = [:]
             for svc in services {
@@ -301,6 +297,28 @@ final class ScanViewModel: ObservableObject {
                 }
             }
             let uniqueServices = Array(uniqueByKey.values)
+            
+            let (classifiedType, confidence) = await classifier.classifyWithConfidence(
+                hostname: nil, 
+                vendor: vendor, 
+                openPorts: ports,
+                services: uniqueServices
+            )
+            
+            // Generate fingerprints
+            let fingerprints = await classifier.fingerprintServices(
+                services: uniqueServices,
+                openPorts: ports
+            )
+
+            let friendlyName: String
+            if let vendor = vendor {
+                friendlyName = vendor
+            } else if classifiedType != .unknown {
+                friendlyName = classifiedType.rawValue.capitalized
+            } else {
+                friendlyName = ipAddress
+            }
 
             let newDevice = Device(
                 id: ipAddress,
@@ -316,7 +334,9 @@ final class ScanViewModel: ObservableObject {
                 services: uniqueServices,
                 firstSeen: Date(),
                 lastSeen: Date(),
-                openPorts: ports
+                openPorts: ports,
+                confidence: confidence,
+                fingerprints: fingerprints
             )
             devices.append(newDevice)
             print("✅ Added new device: \(newDevice.name) (\(ipAddress))")

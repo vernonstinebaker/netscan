@@ -15,6 +15,8 @@ public struct Device: Identifiable, Hashable, Sendable {
     public var firstSeen: Date?
     public var lastSeen: Date?
     public var openPorts: [Port]
+    public var confidence: Double?
+    public var fingerprints: [String: String]?
 
     public init(
         id: String,
@@ -30,7 +32,9 @@ public struct Device: Identifiable, Hashable, Sendable {
         services: [NetworkService] = [],
         firstSeen: Date? = nil,
         lastSeen: Date? = nil,
-        openPorts: [Port] = []
+        openPorts: [Port] = [],
+        confidence: Double? = nil,
+        fingerprints: [String: String]? = nil
     ) {
         self.id = id
         self.name = name
@@ -46,6 +50,8 @@ public struct Device: Identifiable, Hashable, Sendable {
         self.firstSeen = firstSeen
         self.lastSeen = lastSeen
         self.openPorts = openPorts
+        self.confidence = confidence
+        self.fingerprints = fingerprints
     }
 
     // Return services deduplicated by type (and prefer longer/more descriptive names)
@@ -210,7 +216,9 @@ public extension Device {
                 Port(number: 22, serviceName: "SSH", description: "Secure Shell", status: .open),
                 Port(number: 80, serviceName: "HTTP", description: "Web Server", status: .open),
                 Port(number: 443, serviceName: "HTTPS", description: "Secure Web Server", status: .open)
-            ]
+            ],
+            confidence: 0.9,
+            fingerprints: ["http_ports": "80", "https_ports": "443", "ssh_present": "true"]
         )
     }
     

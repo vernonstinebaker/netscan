@@ -6,6 +6,11 @@ public struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var vm: ScanViewModel
     @State private var selectedDevice: Device?
+    // Search & filter state
+    @State private var searchText: String = ""
+    @State private var filterOnlineOnly: Bool = false
+    @State private var filterDeviceType: DeviceType? = nil
+    @State private var filterDiscoverySource: DiscoverySource? = nil
     
     public init() {
         // This initializer will be used by AppDelegate
@@ -47,7 +52,35 @@ public struct ContentView: View {
                         Image(systemName: "arrow.clockwise")
                     }
                 }
+                ToolbarItem(placement: .automatic) {
+                    Menu {
+                        // Online only toggle
+                        Toggle(isOn: $filterOnlineOnly) { Label("Online Only", systemImage: "dot.radiowaves.left.and.right") }
+                        Divider()
+                        // Device type picker
+                        Picker("Device Type", selection: Binding(get: { filterDeviceType ?? .unknown }, set: { filterDeviceType = ($0 == .unknown ? nil : $0) })) {
+                            Text("All Types").tag(DeviceType.unknown)
+                            ForEach(DeviceType.allCases.filter { $0 != .unknown }, id: \.self) { t in
+                                Text(t.rawValue.capitalized).tag(t)
+                            }
+                        }
+                        // Discovery source picker
+                        Picker("Source", selection: Binding(get: { filterDiscoverySource ?? .unknown }, set: { filterDiscoverySource = ($0 == .unknown ? nil : $0) })) {
+                            Text("All Sources").tag(DiscoverySource.unknown)
+                            Text("mDNS").tag(DiscoverySource.mdns)
+                            Text("SSDP").tag(DiscoverySource.ssdp)
+                            Text("ARP").tag(DiscoverySource.arp)
+                            Text("NIO").tag(DiscoverySource.nio)
+                            Text("Ping").tag(DiscoverySource.ping)
+                        }
+                    } label: {
+                        Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+                    }
+                    .help("Filter devices")
+                }
             }
+            // System search field in toolbar
+            .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search devices"))
             .onAppear {
                 vm.detectNetwork()
             }
@@ -68,7 +101,7 @@ public struct ContentView: View {
             LazyVStack(spacing: 1) {
                 // Debug label removed for production UI
                 
-                ForEach(vm.devices) { device in
+                ForEach(filteredDevices) { device in
                     Button(action: { selectedDevice = device }) {
                         DeviceRowView(device: device)
                     }
@@ -82,7 +115,7 @@ public struct ContentView: View {
                     .contentShape(Rectangle())
                 }
                 
-                if vm.devices.isEmpty && !vm.isScanning {
+                if filteredDevices.isEmpty && !vm.isScanning {
                     VStack(spacing: 12) {
                         Image(systemName: "network.slash")
                             .font(.system(size: 32))
@@ -104,7 +137,34 @@ public struct ContentView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
-    .background(Color.clear) // Remove the grey background
+        .background(Color.clear) // Remove the grey background
+    }
+
+    // MARK: - Derived filtered list
+    private var filteredDevices: [Device] {
+        var list = vm.devices
+        // Online filter
+        if filterOnlineOnly { list = list.filter { $0.isOnline } }
+        // Type filter
+        if let t = filterDeviceType { list = list.filter { $0.deviceType == t } }
+        // Source filter
+        if let s = filterDiscoverySource { list = list.filter { $0.discoverySource == s } }
+        // Search text across common fields
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !q.isEmpty {
+            let lower = q.lowercased()
+            list = list.filter { d in
+                if d.name.lowercased().contains(lower) { return true }
+                if d.ipAddress.lowercased().contains(lower) { return true }
+                if (d.manufacturer ?? "").lowercased().contains(lower) { return true }
+                if (d.hostname ?? "").lowercased().contains(lower) { return true }
+                if (d.macAddress ?? "").lowercased().contains(lower) { return true }
+                // services, ports
+                if d.displayServices.contains(where: { $0.type.rawValue.lowercased().contains(lower) || $0.name.lowercased().contains(lower) || (String($0.port ?? -1).contains(lower) && $0.port != nil) }) { return true }
+                return false
+            }
+        }
+        return list
     }
     
     private var header: some View {

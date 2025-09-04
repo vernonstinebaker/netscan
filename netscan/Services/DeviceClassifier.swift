@@ -36,4 +36,100 @@ public actor DeviceClassifier {
         
         return .unknown
     }
+    
+    /// Enhanced classification with confidence scoring
+    public func classifyWithConfidence(hostname: String?, vendor: String?, openPorts: [Port], services: [NetworkService]) -> (DeviceType, Double) {
+        let baseClassification = classify(hostname: hostname, vendor: vendor, openPorts: openPorts)
+        
+        // Calculate confidence based on evidence strength
+        var confidence = 0.0
+        var evidenceCount = 0
+        
+        if hostname != nil && hostname!.contains(baseClassification.rawValue.lowercased()) {
+            confidence += 0.4
+            evidenceCount += 1
+        }
+        
+        if vendor != nil {
+            let vendorLower = vendor!.lowercased()
+            switch baseClassification {
+            case .router:
+                if ["netgear", "tp-link", "linksys", "asus", "cisco"].contains(where: vendorLower.contains) {
+                    confidence += 0.3
+                    evidenceCount += 1
+                }
+            case .printer:
+                if ["hp", "brother", "epson", "canon"].contains(where: vendorLower.contains) {
+                    confidence += 0.3
+                    evidenceCount += 1
+                }
+            case .tv:
+                if ["samsung", "lg", "sony", "vizio"].contains(where: vendorLower.contains) {
+                    confidence += 0.3
+                    evidenceCount += 1
+                }
+            default:
+                break
+            }
+        }
+        
+        // Port-based confidence
+        let portNumbers = Set(openPorts.map { $0.number })
+        switch baseClassification {
+        case .router:
+            if portNumbers.contains(53) || portNumbers.contains(67) {
+                confidence += 0.2
+                evidenceCount += 1
+            }
+        case .printer:
+            if portNumbers.contains(631) || portNumbers.contains(9100) {
+                confidence += 0.2
+                evidenceCount += 1
+            }
+        default:
+            break
+        }
+        
+        // Service-based confidence
+        let serviceTypes = Set(services.map { $0.type })
+        if serviceTypes.contains(.dhcp) || serviceTypes.contains(.dns) {
+            if baseClassification == .router { confidence += 0.1 }
+        }
+        
+        // Normalize confidence
+        if evidenceCount > 0 {
+            confidence = min(confidence, 1.0)
+        } else {
+            confidence = 0.1 // Low confidence for unknown devices
+        }
+        
+        return (baseClassification, confidence)
+    }
+    
+    /// Advanced service fingerprinting for better device identification
+    public func fingerprintServices(services: [NetworkService], openPorts: [Port]) -> [String: String] {
+        var fingerprints: [String: String] = [:]
+        
+        // HTTP fingerprinting
+        if services.contains(where: { $0.type == .http }) {
+            fingerprints["http_ports"] = openPorts.filter { $0.number == 80 }.map { String($0.number) }.joined(separator: ",")
+        }
+        
+        // HTTPS fingerprinting
+        if services.contains(where: { $0.type == .https }) {
+            fingerprints["https_ports"] = openPorts.filter { $0.number == 443 }.map { String($0.number) }.joined(separator: ",")
+        }
+        
+        // SMB detection
+        if services.contains(where: { $0.type == .smb }) {
+            fingerprints["smb_present"] = "true"
+        }
+        
+        // SSH detection
+        if services.contains(where: { $0.type == .ssh }) {
+            fingerprints["ssh_present"] = "true"
+        }
+        
+        return fingerprints
+    }
 }
