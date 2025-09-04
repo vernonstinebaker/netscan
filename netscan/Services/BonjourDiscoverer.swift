@@ -12,20 +12,20 @@ public actor BonjourDiscoverer {
             "_googlecast._tcp.", "_hap._tcp.", "_ftp._tcp.", "_workstation._tcp.", "_rfb._tcp."
         ]
 
-        print("BonjourDiscoverer: Starting discovery with \(types.count) service types")
+        debugLog("BonjourDiscoverer: Starting discovery with \(types.count) service types")
         
         // Create and control the collector on the main actor (NetService expects main run loop)
         let collector = await MainActor.run { BonjourCollector(serviceTypes: types) }
         await MainActor.run { collector.start() }
 
-        print("BonjourDiscoverer: Waiting for \(timeout) seconds...")
+        debugLog("BonjourDiscoverer: Waiting for \(timeout) seconds...")
         // Wait to collect responses
         try? await Task.sleep(nanoseconds: UInt64(max(0, timeout)) * 1_000_000_000)
 
         // Stop and read results on MainActor
         let results: [String: [NetworkService]] = await MainActor.run {
             collector.stop()
-            print("BonjourDiscoverer: Found \(collector.collected.count) IPs: \(collector.collected.keys)")
+            debugLog("BonjourDiscoverer: Found \(collector.collected.count) IPs: \(collector.collected.keys)")
             return collector.collected
         }
         return results
@@ -49,7 +49,7 @@ private final class BonjourCollector: NSObject, @preconcurrency NetServiceBrowse
             let browser = NetServiceBrowser()
             browser.delegate = self
             browsers.append(browser)
-            print("BonjourCollector: Starting browser for type: \(type)")
+            debugLog("BonjourCollector: Starting browser for type: \(type)")
             browser.searchForServices(ofType: type, inDomain: "local.")
         }
     }
@@ -63,29 +63,29 @@ private final class BonjourCollector: NSObject, @preconcurrency NetServiceBrowse
 
     // NetServiceBrowserDelegate
     func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
-        print("BonjourCollector: Found service: \(service.name) (\(service.type)) at \(service.hostName ?? "unknown")")
+        debugLog("BonjourCollector: Found service: \(service.name) (\(service.type)) at \(service.hostName ?? "unknown")")
         service.delegate = self
         services.insert(service)
-        print("BonjourCollector: Resolving service \(service.name) with 2.5s timeout")
+        debugLog("BonjourCollector: Resolving service \(service.name) with 2.5s timeout")
         service.resolve(withTimeout: 2.5)
     }
 
     func netServiceBrowser(_ browser: NetServiceBrowser, didRemove service: NetService, moreComing: Bool) {
-        print("BonjourCollector: Removed service: \(service.name)")
+        debugLog("BonjourCollector: Removed service: \(service.name)")
         services.remove(service)
     }
 
     // NetServiceDelegate
     func netServiceDidResolveAddress(_ sender: NetService) {
-        print("BonjourCollector: Resolved service \(sender.name) - extracting IP addresses")
+        debugLog("BonjourCollector: Resolved service \(sender.name) - extracting IP addresses")
         guard let addrs = sender.addresses else { 
             print("BonjourCollector: No addresses for service \(sender.name)")
             return 
         }
-    print("BonjourCollector: Address data count: \(addrs.count) for service \(sender.name)")
+    debugLog("BonjourCollector: Address data count: \(addrs.count) for service \(sender.name)")
         
         for data in addrs {
-            print("BonjourCollector: Address raw bytes length: \(data.count) for service \(sender.name)")
+            debugLog("BonjourCollector: Address raw bytes length: \(data.count) for service \(sender.name)")
             data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
                 guard let base = raw.baseAddress else { return }
                 let sa = base.assumingMemoryBound(to: sockaddr.self)
@@ -104,7 +104,7 @@ private final class BonjourCollector: NSObject, @preconcurrency NetServiceBrowse
                         }
                     }
                     let ip = String(cString: host)
-                    print("BonjourCollector: Extracted IP: \(ip)")
+                    debugLog("BonjourCollector: Extracted IP: \(ip)")
                     // Map NetService type->ServiceType and append to collected map
                     let svcType = BonjourCollector.mapServiceType(sender.type)
                     let networkService = NetworkService(name: sender.name, type: svcType)
@@ -120,19 +120,10 @@ private final class BonjourCollector: NSObject, @preconcurrency NetServiceBrowse
     }
 
     static func mapServiceType(_ netServiceType: String) -> ServiceType {
-        let t = netServiceType.lowercased()
-        if t.contains("_http._tcp") { return .http }
-        if t.contains("_https._tcp") { return .https }
-        if t.contains("_ssh._tcp") { return .ssh }
-        if t.contains("_smb._tcp") || t.contains("_afpovertcp._tcp") { return .smb }
-        if t.contains("_googlecast._tcp") || t.contains("_raop._tcp") { return .chromecast }
-        if t.contains("_ipp._tcp") || t.contains("_printer._tcp") { return .http }
-        if t.contains("_dns") { return .dns }
-        // default
-        return .http
+        return ServiceMapper.type(forBonjour: netServiceType)
     }
 
     func netService(_ sender: NetService, didNotResolve errorDict: [String : NSNumber]) {
-        print("BonjourCollector: Failed to resolve service \(sender.name). Error: \(errorDict)")
+        debugLog("BonjourCollector: Failed to resolve service \(sender.name). Error: \(errorDict)")
     }
 }

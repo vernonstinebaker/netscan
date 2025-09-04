@@ -95,13 +95,13 @@ public actor SSDPDiscoverer {
             }
         }
 
-    print("SSDPDiscoverer: Starting SSDP discovery (timeout: \(timeout)s)...")
+    debugLog("SSDPDiscoverer: Starting SSDP discovery (timeout: \(timeout)s)...")
     connection.start(queue: queue)
     receiveLoop()
 
     // Wait until timeout elapses (give an extra 0.5s slack)
     try? await Task.sleep(nanoseconds: UInt64(max(0, timeout + 0.5)) * 1_000_000_000)
-    print("SSDPDiscoverer: Discovery complete, returning \(seenIPs.count) IPs: \(seenIPs)")
+    debugLog("SSDPDiscoverer: Discovery complete, returning \(seenIPs.count) IPs: \(seenIPs)")
     return Result(ips: seenIPs)
     }
 }

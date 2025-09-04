@@ -18,9 +18,8 @@ public enum NetworkFrameworkProber {
             let portEndpoint = NWEndpoint.Port(rawValue: port) ?? .http
             let endpoint = NWEndpoint.hostPort(host: host, port: portEndpoint)
             
-            // Use TCP with default parameters (no custom options that might require extra permissions)
+            // Use TCP with default parameters (avoid forcing an interface to enable wired/VPN paths)
             let parameters = NWParameters.tcp
-            parameters.requiredInterfaceType = .wifi // Prefer WiFi to avoid cellular restrictions
             parameters.prohibitExpensivePaths = false
             parameters.allowLocalEndpointReuse = true
             

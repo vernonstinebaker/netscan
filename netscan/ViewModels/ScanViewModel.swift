@@ -19,14 +19,17 @@ final class ScanViewModel: ObservableObject {
     private let ouiService = OUILookupService.shared
     private let pingScanner: PingScanner
     private let nioScanner = NIOPingScanner()
-    private let portScanner = PortScanner(host: "127.0.0.1") // placeholder, used per-host when scanning
+    // Factory for creating per-host port scanners (DI for testing)
+    private let portScannerFactory: (String) -> PortScanning
     private var portScanInProgress: Set<String> = []
     private var portScanCompleted: Set<String> = []
+    private var portScanTasks: [String: Task<Void, Never>] = [:]
     private var scanTask: Task<Void, Error>?
     
-    init(modelContext: ModelContext? = nil) {
+    init(modelContext: ModelContext? = nil, portScannerFactory: @escaping (String) -> PortScanning = { host in PortScanner(host: host) }) {
         self.modelContext = modelContext
         self.pingScanner = PingScanner()
+        self.portScannerFactory = portScannerFactory
         
         if modelContext != nil {
             fetchDevicesFromDB(markAsOffline: true)
@@ -229,7 +232,16 @@ final class ScanViewModel: ObservableObject {
             }
 
             devices[index].isOnline = isOnline
-            devices[index].openPorts = ports
+            // Merge incoming open ports; avoid clobbering existing ports when incoming is empty
+            if !ports.isEmpty {
+                var merged = devices[index].openPorts
+                for p in ports {
+                    if !merged.contains(where: { $0.number == p.number }) {
+                        merged.append(p)
+                    }
+                }
+                devices[index].openPorts = merged
+            }
             // Merge incoming services (avoid duplicates by ServiceType and name)
             for svc in services {
                 if !devices[index].services.contains(where: { $0.type == svc.type && $0.name == svc.name }) {
@@ -380,15 +392,19 @@ final class ScanViewModel: ObservableObject {
 
     func cancelScan() {
         scanTask?.cancel()
+        // Cancel any in-flight port scan tasks and clear state
+        for (_, task) in portScanTasks { task.cancel() }
+        portScanTasks.removeAll()
+        portScanInProgress.removeAll()
     }
 
     private func startPortScanIfNeeded(for ip: String) {
         guard !portScanInProgress.contains(ip) && !portScanCompleted.contains(ip) else { return }
         portScanInProgress.insert(ip)
 
-        Task.detached { [weak self] in
+        let task = Task { [weak self] in
             guard let self = self else { return }
-            let scanner = PortScanner(host: ip)
+            let scanner = self.portScannerFactory(ip)
             let openPorts = await scanner.scanPorts(portRange: 1...1024)
             await MainActor.run {
                 // Find device and merge open ports and derived services
@@ -399,9 +415,9 @@ final class ScanViewModel: ObservableObject {
                             self.devices[idx].openPorts.append(port)
                         }
                     }
-                    // Create NetworkService entries from ports
+                    // Create NetworkService entries from ports using ServiceCatalog mapping
                     for port in openPorts {
-                        let svcType: ServiceType = (port.serviceName.lowercased() == "http") ? .http : .https
+                        let svcType: ServiceType = ServiceMapper.type(forPort: port.number)
                         let svc = NetworkService(name: port.serviceName, type: svcType)
                         if !self.devices[idx].services.contains(where: { $0.name == svc.name && $0.type == svc.type }) {
                             self.devices[idx].services.append(svc)
@@ -412,7 +428,9 @@ final class ScanViewModel: ObservableObject {
                 }
                 self.portScanInProgress.remove(ip)
                 self.portScanCompleted.insert(ip)
+                self.portScanTasks.removeValue(forKey: ip)
             }
         }
+        portScanTasks[ip] = task
     }
 }

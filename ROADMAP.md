@@ -122,3 +122,22 @@ This document outlines the step-by-step plan to add the additional features depi
 3.  **Device Type Classification** - Implement rules engine for device type determination
 4.  **Persistence** - Cache device information between scans and persist results.
 5.  **Advanced UX** - Implement search, filtering, and export capabilities.
+
+---
+
+## 🔧 2025-09-04 Work Log (Ongoing)
+
+This section tracks incremental fixes and tests as they land.
+
+- [x] Fix: Preserve/merge `openPorts` in `ScanViewModel.updateDevice` instead of overwriting. Add unit tests for port/service merge semantics. (2025-09-04)
+- [x] Improve: Service mapping accuracy
+  - [x] `BonjourCollector.mapServiceType` returns `.unknown` for unmapped types
+  - [x] Use `ServiceCatalog.entry(forPort:)` in Port-derived mapping and UI
+  - [x] Unit tests for mapping by port and mDNS type
+- [x] Relax: Remove `.wifi` interface requirement in `NetworkFrameworkProber`
+  - [x] Add smoke test that `probe` returns `.dead` for invalid IP (no network needed)
+- [x] Reliability: Make per-host port scans cancellable via DI in `ScanViewModel`
+  - [x] Inject `portScannerFactory` and track child tasks; cancel on `cancelScan()`
+  - [x] Unit tests using a fake scanner to verify cancellation and state cleanup
+- [ ] Polish: Gate noisy logs under `#if DEBUG` for Bonjour, SSDP, OUI, NIO scanners
+- [ ] Tests: Run full test suite after each step; keep ROADMAP updated.

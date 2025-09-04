@@ -2,7 +2,11 @@ import Foundation
 import Network
 import Darwin
 
-public actor PortScanner {
+public protocol PortScanning: Sendable {
+    func scanPorts(portRange: ClosedRange<UInt16>) async -> [Port]
+}
+
+public actor PortScanner: PortScanning {
     private let host: NWEndpoint.Host
     
     public init(host: String) {

@@ -24,36 +24,36 @@ public actor OUILookupService {
     private func loadOUIDataIfNeeded() async {
         guard !hasLoadedData else { return }
 
-        print("[OUILookupService] Initializing and loading OUI data...")
+        debugLog("[OUILookupService] Initializing and loading OUI data...")
         
         guard let url = urlForResource(name: "oui", ext: "csv") else {
-            print("[OUILookupService] FATAL ERROR: oui.csv not found in bundles.")
-            print("[OUILookupService] Searched in Bundle.main: \(Bundle.main.bundlePath)")
-            print("[OUILookupService] Bundle.main resource path: \(Bundle.main.resourcePath ?? "nil")")
+            debugLog("[OUILookupService] FATAL ERROR: oui.csv not found in bundles.")
+            debugLog("[OUILookupService] Searched in Bundle.main: \(Bundle.main.bundlePath)")
+            debugLog("[OUILookupService] Bundle.main resource path: \(Bundle.main.resourcePath ?? "nil")")
             // Try to list files in the Resources directory
             if let resourcePath = Bundle.main.resourcePath {
                 do {
                     let files = try FileManager.default.contentsOfDirectory(atPath: resourcePath)
-                    print("[OUILookupService] Files in Resources: \(files)")
+                    debugLog("[OUILookupService] Files in Resources: \(files)")
                 } catch {
-                    print("[OUILookupService] Error listing Resources: \(error)")
+                    debugLog("[OUILookupService] Error listing Resources: \(error)")
                 }
             }
             return
         }
         
-        print("[OUILookupService] Found oui.csv at: \(url.path)")
+        debugLog("[OUILookupService] Found oui.csv at: \(url.path)")
         
         do {
             let data = try String(contentsOf: url, encoding: .utf8)
             // Support both LF and CRLF line endings
             let normalized = data.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
             let lines = normalized.split(separator: "\n")
-            print("[OUILookupService] Read \(lines.count) lines from oui.csv")
+            debugLog("[OUILookupService] Read \(lines.count) lines from oui.csv")
             
             // Skip the header line
             let dataLines = lines.dropFirst()
-            print("[OUILookupService] Processing \(dataLines.count) data lines")
+            debugLog("[OUILookupService] Processing \(dataLines.count) data lines")
             
             for line in dataLines {
                 // Skip empty lines
@@ -63,7 +63,7 @@ public actor OUILookupService {
                 // Split by comma, but be careful with quoted fields
                 let columns = parseCSVLine(trimmedLine)
                 guard columns.count >= 3 else {
-                    print("[OUILookupService] Skipping malformed line: \(trimmedLine)")
+                    debugLog("[OUILookupService] Skipping malformed line: \(trimmedLine)")
                     continue
                 }
                 
@@ -79,17 +79,17 @@ public actor OUILookupService {
             }
             
             hasLoadedData = true
-            print("[OUILookupService] OUI data loaded successfully. \(vendorCache.count) entries.")
+            debugLog("[OUILookupService] OUI data loaded successfully. \(vendorCache.count) entries.")
 
             // Show a few examples
             if vendorCache.isEmpty {
-                print("[OUILookupService] WARNING: vendorCache is empty after parsing. First 10 raw lines:\n\(lines.prefix(10).joined(separator: "\n"))")
+                debugLog("[OUILookupService] WARNING: vendorCache is empty after parsing. First 10 raw lines:\n\(lines.prefix(10).joined(separator: "\n"))")
             } else if let firstEntry = vendorCache.first {
-                print("[OUILookupService] Sample entry: \(firstEntry.key) -> \(firstEntry.value)")
+                debugLog("[OUILookupService] Sample entry: \(firstEntry.key) -> \(firstEntry.value)")
             }
             
         } catch {
-            print("[OUILookupService] Error loading OUI data: \(error)")
+            debugLog("[OUILookupService] Error loading OUI data: \(error)")
         }
     }
     
