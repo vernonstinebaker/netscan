@@ -100,7 +100,7 @@ public struct DeviceDetailView: View {
                 map[svc.type] = svc
             }
         }
-        let combined = Array(map.values)
+        let combined = Array(map.values).filter { $0.type != .unknown }
 
         return VStack(alignment: .leading, spacing: Theme.space(.lg)) {
             Text("Active Services")

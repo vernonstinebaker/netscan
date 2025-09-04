@@ -91,7 +91,7 @@ public struct DeviceRowView: View {
     
         private var clickableServiceTags: some View {
             HStack(spacing: Theme.space(.sm)) {
-                ForEach(device.displayServices) { svc in
+                ForEach(device.displayServices.filter { $0.type != .unknown }) { svc in
                     if svc.type == .http || svc.type == .https {
                         Button(action: {
                             guard let host = URL(string: "http://\(device.ipAddress)") else { return }
