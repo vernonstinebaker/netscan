@@ -5,20 +5,44 @@ import Darwin
 public actor BonjourDiscoverer {
     public init() {}
 
-    public func discover(timeout: TimeInterval = 2.0, serviceTypes: [String]? = nil) async -> [String: [NetworkService]] {
-        let types = serviceTypes ?? [
+    // Discover the available service types using DNS-SD's canonical service enumeration.
+    // Falls back to a default seed list if nothing is found within the timeout.
+    public func discoverServiceTypes(timeout: TimeInterval = 1.0) async -> [String] {
+        let collector = await MainActor.run { () -> ServiceTypeCollector in
+            let c = ServiceTypeCollector()
+            c.start()
+            return c
+        }
+        // Wait briefly off the main actor
+        try? await Task.sleep(nanoseconds: UInt64(max(0, timeout)) * 1_000_000_000)
+        let discovered = await MainActor.run { () -> [String] in
+            collector.stop()
+            return Array(collector.types)
+        }
+        if !discovered.isEmpty { return discovered }
+        // fallback seed list
+        return [
             "_http._tcp.", "_https._tcp.", "_ssh._tcp.", "_smb._tcp.", "_afpovertcp._tcp.",
             "_device-info._tcp.", "_airplay._tcp.", "_raop._tcp.", "_ipp._tcp.", "_printer._tcp.",
             "_googlecast._tcp.", "_hap._tcp.", "_ftp._tcp.", "_workstation._tcp.", "_rfb._tcp."
         ]
+    }
 
-        debugLog("BonjourDiscoverer: Starting discovery with \(types.count) service types")
+    public func discover(timeout: TimeInterval = 2.0, serviceTypes: [String]? = nil) async -> [String: [NetworkService]] {
+        let types: [String]
+        if let provided = serviceTypes {
+            types = provided
+        } else {
+            types = await discoverServiceTypes(timeout: min(1.0, timeout/2))
+        }
+        
+        await MainActor.run { debugLog("BonjourDiscoverer: Starting discovery with \(types.count) service types") }
         
         // Create and control the collector on the main actor (NetService expects main run loop)
         let collector = await MainActor.run { BonjourCollector(serviceTypes: types) }
         await MainActor.run { collector.start() }
 
-        debugLog("BonjourDiscoverer: Waiting for \(timeout) seconds...")
+        await MainActor.run { debugLog("BonjourDiscoverer: Waiting for \(timeout) seconds...") }
         // Wait to collect responses
         try? await Task.sleep(nanoseconds: UInt64(max(0, timeout)) * 1_000_000_000)
 
@@ -128,5 +152,26 @@ private final class BonjourCollector: NSObject, @preconcurrency NetServiceBrowse
 
     func netService(_ sender: NetService, didNotResolve errorDict: [String : NSNumber]) {
         debugLog("BonjourCollector: Failed to resolve service \(sender.name). Error: \(errorDict)")
+    }
+}
+
+@MainActor
+private final class ServiceTypeCollector: NSObject, @preconcurrency NetServiceBrowserDelegate {
+    private let browser = NetServiceBrowser()
+    private(set) var types: Set<String> = []
+
+    func start() {
+        browser.delegate = self
+        browser.searchForServices(ofType: "_services._dns-sd._udp.", inDomain: "local.")
+    }
+
+    func stop() {
+        browser.stop()
+    }
+
+    func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
+        // NetService type property will be the discovered service type
+        let t = service.type
+        if t.hasSuffix(".") { types.insert(t) } else { types.insert(t + ".") }
     }
 }

@@ -70,6 +70,10 @@ final class ScanViewModel: ObservableObject {
                 #endif
                 async let bonjourTask = BonjourDiscoverer().discover(timeout: 4.0)
                 async let ssdpTask = SSDPDiscoverer().discover(timeout: 3.5)
+                // Also kick off WS-Discovery (Windows/Printers) in parallel
+                async let wsTask = WSDiscoveryDiscoverer().discover(timeout: 2.5)
+                // Start ARP parsing concurrently so it can enrich devices early
+                async let arpEntriesTask = arpParser.getARPTable()
 
                 // Await Bonjour first and insert results immediately so UI shows mDNS devices quickly.
                 let bonjourResults = await bonjourTask
@@ -90,10 +94,18 @@ final class ScanViewModel: ObservableObject {
                         await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, discoverySource: .ssdp)
                     }
                 }
+                // WS-Discovery results
+                let wsResults = await wsTask
+                if !wsResults.ips.isEmpty {
+                    print("🖨️ WS-Discovery found: \(wsResults.ips.count) devices: \(wsResults.ips)")
+                    for ip in wsResults.ips {
+                        try Task.checkCancellation()
+                        await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, discoverySource: .ssdp)
+                    }
+                }
 
-                // --- Stage 2: ARP - slower but useful for MAC/vendor info. Only add or update entries
-                // that we haven't already discovered via mDNS/SSDP to avoid duplicates and extra work.
-                let arpEntries = await arpParser.getARPTable()
+                // --- ARP (arrives whenever ready) ---
+                let arpEntries = await arpEntriesTask
                 let arpMap = arpEntries.reduce(into: [String: String]()) { $0[$1.ipAddress] = $1.macAddress }
                 if !arpEntries.isEmpty {
                     print("[ScanViewModel] Populating devices from ARP table: \(arpEntries.map { $0.ipAddress })")
