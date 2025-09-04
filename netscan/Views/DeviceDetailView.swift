@@ -147,7 +147,7 @@ public struct DeviceDetailView: View {
                 UIApplication.shared.open(url)
                 #endif
             }) {
-                ServiceTag(service: svc)
+                ServiceTag(service: svc, showNonStandardPort: true)
             }.buttonStyle(.plain)
         } else if svc.type == .ssh {
             Button(action: {
@@ -168,10 +168,10 @@ public struct DeviceDetailView: View {
                 UIPasteboard.general.string = cmd
                 #endif
             }) {
-                ServiceTag(service: svc)
+                ServiceTag(service: svc, showNonStandardPort: true)
             }.buttonStyle(.plain)
         } else {
-            ServiceTag(service: svc)
+            ServiceTag(service: svc, showNonStandardPort: true)
         }
     }
 }
