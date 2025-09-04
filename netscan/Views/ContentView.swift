@@ -39,7 +39,7 @@ public struct ContentView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
             }
-            .background(Color(NSColor.windowBackgroundColor))
+            .background(Theme.color(.bgRoot))
             .navigationTitle("Network Scanner")
             .toolbar {
                 ToolbarItem(placement: .automatic) {
@@ -104,7 +104,7 @@ public struct ContentView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
-        .background(Color.clear) // Remove the grey background
+    .background(Color.clear) // Remove the grey background
     }
     
     private var header: some View {
@@ -142,11 +142,11 @@ public struct ContentView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(NSColor.controlBackgroundColor))
+        .background(Theme.color(.bgCard))
         .overlay(
             Divider()
                 .frame(maxWidth: .infinity, maxHeight: 1)
-                .background(Color(NSColor.separatorColor)),
+                .background(Theme.color(.separator)),
             alignment: .bottom
         )
     }
@@ -219,7 +219,7 @@ public struct ContentView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(NSColor.controlBackgroundColor))
+    .background(Theme.color(.bgCard))
         .frame(maxWidth: .infinity)
     }
     

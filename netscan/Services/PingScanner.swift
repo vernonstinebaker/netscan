@@ -59,48 +59,53 @@ public actor PingScanner {
                     try Task.checkCancellation()
                     let upper = min(index + max(1, concurrency), total)
                     
-                    try await withThrowingTaskGroup(of: Device?.self) { group in
+                    try await withThrowingTaskGroup(of: (String, Double?, [Int])?.self) { group in
                         for i in index..<upper {
                             try Task.checkCancellation()
                             let ipStr = await MainActor.run { IPv4.format(hosts[i]) }
-                            
+
                             if ipStr == info.ip || skipIPs.contains(ipStr) {
                                 scanned += 1
                                 onProgress?(Progress(scanned: scanned, total: total))
                                 continue
                             }
-                            
+
                             group.addTask { [timeout, portsToCheck, requiredPortResponses] in
                                 try Task.checkCancellation()
-                                
-                                var foundPorts: [Port] = []
+
+                                var foundPortNumbers: [Int] = []
                                 var bestRtt: Double = Double.infinity
-                                
+
                                 let toAttempt = portsToCheck.prefix(min(24, portsToCheck.count))
                                 for port in toAttempt {
                                     try Task.checkCancellation()
                                     if let (isAlive, rtt) = try await Self.checkPort(ipStr, port: port, timeout: timeout) {
                                         if isAlive {
-                                            let openPort = await MainActor.run { Port(number: Int(port), serviceName: "unknown", description: "", status: .open) }
-                                            foundPorts.append(openPort)
+                                            // Collect primitive port numbers here; construct Port on MainActor later
+                                            foundPortNumbers.append(Int(port))
                                             bestRtt = min(bestRtt, rtt)
-                                            if foundPorts.count >= requiredPortResponses { break }
+                                            if foundPortNumbers.count >= requiredPortResponses { break }
                                         }
                                     }
                                 }
 
-                                if !foundPorts.isEmpty {
+                                if !foundPortNumbers.isEmpty {
                                     let finalRtt: Double? = (bestRtt == Double.infinity) ? nil : bestRtt
-                                    return await MainActor.run { Device(ip: ipStr, rttMillis: finalRtt, openPorts: foundPorts) }
+                                    return (ipStr, finalRtt, foundPortNumbers)
                                 } else {
                                     return nil
                                 }
                             }
                         }
-                        
-                        for try await maybeDevice in group {
+
+                        for try await maybeResult in group {
                             scanned += 1
-                            if let device = maybeDevice {
+                            if let (ipFound, rttFound, portNumbers) = maybeResult {
+                                // Construct Port and Device on the MainActor to avoid actor-isolation/concurrency issues
+                                let device = await MainActor.run {
+                                    let ports: [Port] = portNumbers.map { Port(number: $0, serviceName: "unknown", description: "", status: .open) }
+                                    return Device(ip: ipFound, rttMillis: rttFound, openPorts: ports)
+                                }
                                 continuation.yield(device)
                                 onDeviceFound?(device)
                             }

@@ -57,6 +57,14 @@ final class ScanViewModel: ObservableObject {
                 
                 // --- Stage 1: Start Bonjour and SSDP immediately so fast mDNS results populate first ---
                 print("🔍 Starting Bonjour and SSDP discovery...")
+                #if os(iOS)
+                // On iOS, Bonjour and other network discovery may be restricted without
+                // the 'NSLocalNetworkUsageDescription' and service privacy entries in Info.plist
+                // or without the Local Network permission granted at runtime. Log a hint.
+                if Bundle.main.object(forInfoDictionaryKey: "NSLocalNetworkUsageDescription") == nil {
+                    print("[ScanViewModel] WARNING: NSLocalNetworkUsageDescription missing from Info.plist — Bonjour/mDNS may not work on iOS until user grants Local Network permission.")
+                }
+                #endif
                 async let bonjourTask = BonjourDiscoverer().discover(timeout: 4.0)
                 async let ssdpTask = SSDPDiscoverer().discover(timeout: 3.5)
 

@@ -22,8 +22,10 @@ struct netscanApp: App {
                 .frame(minWidth: 900, minHeight: 600)
         }
         .modelContainer(sharedModelContainer)
-        .windowStyle(.automatic)
-        .windowResizability(.contentMinSize)
+    #if os(macOS)
+    .windowStyle(.automatic)
+    .windowResizability(.contentMinSize)
+    #endif
     }
 }
 

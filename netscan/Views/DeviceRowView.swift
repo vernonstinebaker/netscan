@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 public struct DeviceRowView: View {
     let device: Device
@@ -98,13 +101,18 @@ public struct DeviceRowView: View {
                                 comp?.scheme = "https"
                                 if let u = comp?.url { url = u }
                             }
+                            #if os(macOS)
                             NSWorkspace.shared.open(url)
+                            #elseif canImport(UIKit)
+                            UIApplication.shared.open(url)
+                            #endif
                         }) {
                             ServiceTag(service: svc)
                         }.buttonStyle(.plain)
                     } else if svc.type == .ssh {
                         Button(action: {
                             // Try ssh:// URL scheme first
+                            #if os(macOS)
                             if let url = URL(string: "ssh://\(device.ipAddress)"), NSWorkspace.shared.open(url) {
                                 return
                             }
@@ -112,6 +120,11 @@ public struct DeviceRowView: View {
                             let cmd = "ssh \(device.ipAddress)"
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(cmd, forType: .string)
+                            #elseif canImport(UIKit)
+                            // On iOS, copy ssh command to clipboard
+                            let cmd = "ssh \(device.ipAddress)"
+                            UIPasteboard.general.string = cmd
+                            #endif
                         }) {
                             ServiceTag(service: svc)
                         }.buttonStyle(.plain)

@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 public struct DeviceDetailView: View {
     let device: Device
@@ -138,18 +141,28 @@ public struct DeviceDetailView: View {
                     comp?.scheme = "https"
                     if let u = comp?.url { url = u }
                 }
+                #if os(macOS)
                 NSWorkspace.shared.open(url)
+                #elseif canImport(UIKit)
+                UIApplication.shared.open(url)
+                #endif
             }) {
                 ServiceTag(service: svc)
             }.buttonStyle(.plain)
         } else if svc.type == .ssh {
             Button(action: {
+                #if os(macOS)
                 if let url = URL(string: "ssh://\(device.ipAddress)"), NSWorkspace.shared.open(url) {
                     return
                 }
                 let cmd = "ssh \(device.ipAddress)"
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(cmd, forType: .string)
+                #elseif canImport(UIKit)
+                // On iOS, we can't open ssh URLs; copy the ssh command to the clipboard instead.
+                let cmd = "ssh \(device.ipAddress)"
+                UIPasteboard.general.string = cmd
+                #endif
             }) {
                 ServiceTag(service: svc)
             }.buttonStyle(.plain)
@@ -189,10 +202,12 @@ private struct InfoRow: View {
     }
     
     private func copyToClipboard(_ text: String) {
-        #if os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        #endif
+    #if os(macOS)
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(text, forType: .string)
+    #elseif canImport(UIKit)
+    UIPasteboard.general.string = text
+    #endif
     }
 }
 
