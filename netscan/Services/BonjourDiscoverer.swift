@@ -108,10 +108,11 @@ private final class BonjourCollector: NSObject, @preconcurrency NetServiceBrowse
                     // Map NetService type->ServiceType; skip unknown service types
                     let svcType = BonjourCollector.mapServiceType(sender.type)
                     if svcType != .unknown {
-                        let networkService = NetworkService(name: sender.name, type: svcType)
+                        let port = sender.port > 0 ? Int(sender.port) : nil
+                        let networkService = NetworkService(name: sender.name, type: svcType, port: port)
                         var list = collected[ip] ?? []
                         // avoid duplicates by service type+name
-                        if !list.contains(where: { $0.name == networkService.name && $0.type == networkService.type }) {
+                        if !list.contains(where: { $0.type == networkService.type && $0.port == networkService.port && $0.name == networkService.name }) {
                             list.append(networkService)
                         }
                         collected[ip] = list

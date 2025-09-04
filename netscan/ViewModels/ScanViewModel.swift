@@ -242,9 +242,9 @@ final class ScanViewModel: ObservableObject {
                 }
                 devices[index].openPorts = merged
             }
-            // Merge incoming services (avoid duplicates by ServiceType and name)
+            // Merge incoming services (avoid duplicates by ServiceType + port)
             for svc in services {
-                if !devices[index].services.contains(where: { $0.type == svc.type && $0.name == svc.name }) {
+                if !devices[index].services.contains(where: { $0.type == svc.type && $0.port == svc.port }) {
                     devices[index].services.append(svc)
                 }
             }
@@ -278,19 +278,17 @@ final class ScanViewModel: ObservableObject {
                 friendlyName = ipAddress
             }
 
-            // Deduplicate incoming services by type and prefer a stable name if possible
-            var uniqueByType: [ServiceType: NetworkService] = [:]
+            // Deduplicate incoming services by (type, port) and prefer longer names
+            var uniqueByKey: [String: NetworkService] = [:]
             for svc in services {
-                if let existing = uniqueByType[svc.type] {
-                    // prefer a non-empty name / longer name as a heuristic
-                    if svc.name.count > existing.name.count {
-                        uniqueByType[svc.type] = svc
-                    }
+                let key = "\(svc.type.rawValue)-\(svc.port ?? -1)"
+                if let existing = uniqueByKey[key] {
+                    if svc.name.count > existing.name.count { uniqueByKey[key] = svc }
                 } else {
-                    uniqueByType[svc.type] = svc
+                    uniqueByKey[key] = svc
                 }
             }
-            let uniqueServices = Array(uniqueByType.values)
+            let uniqueServices = Array(uniqueByKey.values)
 
             let newDevice = Device(
                 id: ipAddress,
@@ -418,8 +416,8 @@ final class ScanViewModel: ObservableObject {
                     // Create NetworkService entries from ports using ServiceCatalog mapping
                     for port in openPorts {
                         let svcType: ServiceType = ServiceMapper.type(forPort: port.number)
-                        let svc = NetworkService(name: port.serviceName, type: svcType)
-                        if !self.devices[idx].services.contains(where: { $0.name == svc.name && $0.type == svc.type }) {
+                        let svc = NetworkService(name: port.serviceName, type: svcType, port: port.number)
+                        if !self.devices[idx].services.contains(where: { $0.type == svc.type && $0.port == svc.port }) {
                             self.devices[idx].services.append(svc)
                         }
                     }

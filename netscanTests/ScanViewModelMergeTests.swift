@@ -75,5 +75,28 @@ final class ScanViewModelMergeTests: XCTestCase {
         )
         XCTAssertEqual(Set(vm.devices[0].services.map { $0.type }), Set([.http, .ssh]))
     }
-}
 
+    func testServicesWithDifferentPortsAreNotMerged() async {
+        let vm = ScanViewModel()
+        // Insert device with HTTP:80
+        await vm.updateDevice(
+            ipAddress: "192.168.1.50",
+            arpMap: [:],
+            isOnline: true,
+            services: [NetworkService(name: "Web", type: .http, port: 80)],
+            discoverySource: .mdns
+        )
+        // Update with HTTP:8080, should not merge with the HTTP:80 tag
+        await vm.updateDevice(
+            ipAddress: "192.168.1.50",
+            arpMap: [:],
+            isOnline: true,
+            services: [NetworkService(name: "Web-Alt", type: .http, port: 8080)],
+            discoverySource: .mdns
+        )
+        let httpServices = vm.devices[0].services.filter { $0.type == .http }
+        XCTAssertEqual(httpServices.count, 2)
+        XCTAssertTrue(httpServices.contains(where: { $0.port == 80 }))
+        XCTAssertTrue(httpServices.contains(where: { $0.port == 8080 }))
+    }
+}

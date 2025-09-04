@@ -8,7 +8,11 @@ struct ServiceTag: View {
         HStack(spacing: 6) {
             Image(systemName: s.icon)
                 .font(.system(size: 11))
-            Text(s.label.uppercased())
+            let label: String = {
+                if let p = service.port { return "\(s.label.uppercased()):\(p)" }
+                return s.label.uppercased()
+            }()
+            Text(label)
                 .font(.system(size: 12, weight: .semibold))
         }
         .padding(.horizontal, 8)

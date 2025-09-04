@@ -134,6 +134,7 @@ This section tracks incremental fixes and tests as they land.
   - [x] `BonjourCollector.mapServiceType` returns `.unknown` for unmapped types
   - [x] Use `ServiceCatalog.entry(forPort:)` in Port-derived mapping and UI
   - [x] Unit tests for mapping by port and mDNS type
+- [x] UX: Distinguish services by port and show it in pills (e.g., HTTP:8080). Avoid merging different ports under one service type. (2025-09-04)
 - [x] Relax: Remove `.wifi` interface requirement in `NetworkFrameworkProber`
   - [x] Add smoke test that `probe` returns `.dead` for invalid IP (no network needed)
 - [x] Reliability: Make per-host port scans cancellable via DI in `ScanViewModel`

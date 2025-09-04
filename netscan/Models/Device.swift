@@ -66,33 +66,29 @@ public struct Device: Identifiable, Hashable, Sendable {
     // A canonical list of services to display in the UI.
     // Combines deduped discovery services with port-derived services and returns a deterministic order.
     public var displayServices: [NetworkService] {
-        // map openPorts to network services (only map well-known ports)
-        let portDerived: [NetworkService] = openPorts.compactMap { port in
-            switch port.number {
-            case 80: return NetworkService(name: port.serviceName, type: .http)
-            case 443: return NetworkService(name: port.serviceName, type: .https)
-            case 22: return NetworkService(name: port.serviceName, type: .ssh)
-            case 1900: return NetworkService(name: port.serviceName, type: .ssdp)
-            case 5353: return NetworkService(name: port.serviceName, type: .mdns)
-            case 445: return NetworkService(name: port.serviceName, type: .smb)
-            default: return nil
-            }
-        }
+        // Map openPorts to network services (well-known ports only)
+        let portDerived: [NetworkService] = openPorts.map { port in
+            let t = ServiceMapper.type(forPort: port.number)
+            return NetworkService(name: port.serviceName, type: t, port: port.number)
+        }.filter { $0.type != .unknown }
 
-        var map: [ServiceType: NetworkService] = [:]
-        for svc in uniqueServices + portDerived {
-            if let existing = map[svc.type] {
+        // Merge discovery services and port-derived services; dedupe by (type, port)
+        var map: [String: NetworkService] = [:]
+        for svc in services + portDerived {
+            let key = "\(svc.type.rawValue)-\(svc.port ?? -1)"
+            if let existing = map[key] {
                 // prefer the one with longer name
-                if svc.name.count > existing.name.count {
-                    map[svc.type] = svc
-                }
+                if svc.name.count > existing.name.count { map[key] = svc }
             } else {
-                map[svc.type] = svc
+                map[key] = svc
             }
         }
 
-        // Return a deterministic, sorted array so master/detail ordering matches.
-        return Array(map.values).sorted { $0.type.rawValue < $1.type.rawValue }
+        // Return a deterministic, sorted array by type then port
+        return Array(map.values).sorted { a, b in
+            if a.type == b.type { return (a.port ?? 0) < (b.port ?? 0) }
+            return a.type.rawValue < b.type.rawValue
+        }
     }
 
     public init(ip: String, rttMillis: Double?, openPorts: [Port] = []) {
@@ -147,10 +143,12 @@ public struct NetworkService: Identifiable, Hashable, Sendable {
     public let id = UUID()
     public let name: String
     public let type: ServiceType
+    public let port: Int?
     
-    public init(name: String, type: ServiceType) {
+    public init(name: String, type: ServiceType, port: Int? = nil) {
         self.name = name
         self.type = type
+        self.port = port
     }
 }
 

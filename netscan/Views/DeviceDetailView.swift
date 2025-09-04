@@ -134,13 +134,13 @@ public struct DeviceDetailView: View {
     private func serviceTagButton(for svc: NetworkService) -> some View {
         if svc.type == .http || svc.type == .https {
             Button(action: {
-                guard let host = URL(string: "http://\(device.ipAddress)") else { return }
-                var url = host
-                if svc.type == .https {
-                    var comp = URLComponents(url: host, resolvingAgainstBaseURL: false)
-                    comp?.scheme = "https"
-                    if let u = comp?.url { url = u }
+                var comps = URLComponents()
+                comps.scheme = (svc.type == .https) ? "https" : "http"
+                comps.host = device.ipAddress
+                if let p = svc.port, !([80,443].contains(p) && ((svc.type == .http && p == 80) || (svc.type == .https && p == 443))) {
+                    comps.port = p
                 }
+                guard let url = comps.url else { return }
                 #if os(macOS)
                 NSWorkspace.shared.open(url)
                 #elseif canImport(UIKit)
@@ -152,7 +152,11 @@ public struct DeviceDetailView: View {
         } else if svc.type == .ssh {
             Button(action: {
                 #if os(macOS)
-                if let url = URL(string: "ssh://\(device.ipAddress)"), NSWorkspace.shared.open(url) {
+                var comps = URLComponents()
+                comps.scheme = "ssh"
+                comps.host = device.ipAddress
+                if let p = svc.port { comps.port = p }
+                if let url = comps.url, NSWorkspace.shared.open(url) {
                     return
                 }
                 let cmd = "ssh \(device.ipAddress)"
