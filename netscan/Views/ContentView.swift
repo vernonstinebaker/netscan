@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-@available(macOS 14.0, *)
+@available(iOS 17.0, macOS 14.0, *)
 public struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var vm: ScanViewModel

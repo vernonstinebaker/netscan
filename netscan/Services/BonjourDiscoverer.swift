@@ -170,8 +170,31 @@ private final class ServiceTypeCollector: NSObject, @preconcurrency NetServiceBr
     }
 
     func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
-        // NetService type property will be the discovered service type
-        let t = service.type
-        if t.hasSuffix(".") { types.insert(t) } else { types.insert(t + ".") }
+        // Extract a valid regtype like "_http._tcp." from the service record
+        let candidates = [service.name, service.type]
+        for cand in candidates {
+            if let reg = Self.extractRegtype(from: cand) {
+                types.insert(reg)
+                break
+            }
+        }
+    }
+
+    private static func extractRegtype(from string: String) -> String? {
+        // Normalize by stripping a trailing domain if present (e.g., ".local.")
+        var s = string
+        let lower = s.lowercased()
+        if lower.hasSuffix(".local.") {
+            s = String(s.dropLast(".local.".count))
+        }
+        // Look for a substring like "_name._tcp." or "_name._udp."
+        let pattern = #"(_[A-Za-z0-9\-]+\._(tcp|udp)\.)"#
+        if let range = s.range(of: pattern, options: .regularExpression) {
+            let match = String(s[range])
+            // Filter out the meta-service itself
+            if match.lowercased() == "_services._dns-sd._udp." { return nil }
+            return match.hasSuffix(".") ? match : match + "."
+        }
+        return nil
     }
 }
