@@ -1,0 +1,410 @@
+import Foundation
+import SwiftData
+import Combine
+
+@MainActor
+final class ScanViewModel: ObservableObject {
+    @Published var networkInfo: NetworkInfo?
+    @Published var devices: [Device] = []
+    @Published var isScanning: Bool = false
+    @Published var progressText: String = ""
+    
+    @Published var deviceCount: Int = 0
+    @Published var onlineCount: Int = 0
+    @Published var servicesCount: Int = 0
+
+    private let modelContext: ModelContext?
+    private let arpParser = ARPTableParser()
+    private let classifier = DeviceClassifier()
+    private let ouiService = OUILookupService.shared
+    private let pingScanner: PingScanner
+    private let nioScanner = NIOPingScanner()
+    private let portScanner = PortScanner(host: "127.0.0.1") // placeholder, used per-host when scanning
+    private var portScanInProgress: Set<String> = []
+    private var portScanCompleted: Set<String> = []
+    private var scanTask: Task<Void, Error>?
+    
+    init(modelContext: ModelContext? = nil) {
+        self.modelContext = modelContext
+        self.pingScanner = PingScanner()
+        
+        if modelContext != nil {
+            fetchDevicesFromDB(markAsOffline: true)
+        }
+    }
+
+    func detectNetwork() {
+        networkInfo = NetworkInterface.currentIPv4()
+        print("Detected network: \(networkInfo?.description ?? "nil")")
+    }
+
+    func startScan() {
+        guard !isScanning else { return }
+        
+        print("🔍 Starting network scan...")
+        isScanning = true
+        progressText = "Starting scan..."
+        
+        scanTask = Task {
+            do {
+                print("📡 Detecting network info...")
+                detectNetwork()
+                guard let info = networkInfo else {
+                    print("❌ Failed to detect network")
+                    return
+                }
+                print("🌐 Network detected: \(info.ip)/\(info.netmask)")
+                
+                // --- Stage 1: Start Bonjour and SSDP immediately so fast mDNS results populate first ---
+                print("🔍 Starting Bonjour and SSDP discovery...")
+                async let bonjourTask = BonjourDiscoverer().discover(timeout: 4.0)
+                async let ssdpTask = SSDPDiscoverer().discover(timeout: 3.5)
+
+                // Await Bonjour first and insert results immediately so UI shows mDNS devices quickly.
+                let bonjourResults = await bonjourTask
+                if !bonjourResults.isEmpty {
+                    print("📱 Bonjour found: \(bonjourResults.count) devices: \(bonjourResults.keys)")
+                    for (ip, services) in bonjourResults {
+                        try Task.checkCancellation()
+                        await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, services: services, discoverySource: .mdns)
+                    }
+                }
+
+                // Now await SSDP results and insert them
+                let ssdpResults = await ssdpTask
+                if !ssdpResults.ips.isEmpty {
+                    print("📺 SSDP found: \(ssdpResults.ips.count) devices: \(ssdpResults.ips)")
+                    for ip in ssdpResults.ips {
+                        try Task.checkCancellation()
+                        await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, discoverySource: .ssdp)
+                    }
+                }
+
+                // --- Stage 2: ARP - slower but useful for MAC/vendor info. Only add or update entries
+                // that we haven't already discovered via mDNS/SSDP to avoid duplicates and extra work.
+                let arpEntries = await arpParser.getARPTable()
+                let arpMap = arpEntries.reduce(into: [String: String]()) { $0[$1.ipAddress] = $1.macAddress }
+                if !arpEntries.isEmpty {
+                    print("[ScanViewModel] Populating devices from ARP table: \(arpEntries.map { $0.ipAddress })")
+                    for entry in arpEntries {
+                        try Task.checkCancellation()
+                        if let existing = devices.first(where: { $0.ipAddress == entry.ipAddress }) {
+                            // Update ARP info on existing device (don't override discovery source if higher priority)
+                            await updateDevice(ipAddress: entry.ipAddress, arpMap: arpMap, isOnline: existing.isOnline, discoverySource: .arp)
+                        } else {
+                            await updateDevice(ipAddress: entry.ipAddress, arpMap: arpMap, isOnline: true, discoverySource: .arp)
+                        }
+                    }
+                }
+
+                let totalHosts = IPv4.hosts(inNetwork: IPv4.network(ip: IPv4.parse(info.ip)!, mask: IPv4.parse(info.netmask)!), mask: IPv4.parse(info.netmask)!).count
+
+                // --- Stage: Check known devices for online status ---
+                progressText = "Checking known devices..."
+                let knownIPs = Set(devices.map { $0.ipAddress })
+                print("📋 Found \(knownIPs.count) known devices: \(knownIPs)")
+
+                print("� Checking known devices for online status (skipping already-online devices)...")
+                for ip in knownIPs {
+                    try Task.checkCancellation()
+                    if let existing = devices.first(where: { $0.ipAddress == ip }), existing.isOnline {
+                        print("ℹ️ Skipping ping for already-online known device: \(ip)")
+                        continue
+                    }
+                    if let result = try? await pingScanner.ping(host: ip), result.isOnline {
+                        print("✅ Known device \(ip) is online")
+                        await updateDevice(ipAddress: ip, arpMap: arpMap, isOnline: true, discoverySource: .ping)
+                    } else {
+                        print("❌ Known device \(ip) is offline")
+                    }
+                }
+                
+                print("🔄 Sending UI update notification...")
+                // Force UI update
+                await MainActor.run {
+                    self.objectWillChange.send()
+                }
+                
+                print("📊 Current device count after discovery: \(devices.count)")
+                print("📋 Current devices: \(devices.map { $0.ipAddress })")
+                
+                // --- Stage 2: Full Discovery for New Devices ---
+                let alreadyOnlineIPs = Set(devices.filter { $0.isOnline }.map { $0.ipAddress })
+                progressText = "Discovering new devices..."
+                print("🔍 Starting full network scan for \(totalHosts) hosts...")
+                
+                _ = try await self.nioScanner.scanSubnet(info: info, concurrency: 32, skipIPs: alreadyOnlineIPs) { progress in
+                    Task { @MainActor in self.progressText = "Port Scan: \(progress.scanned)/\(totalHosts)" }
+                } onDeviceFound: { device in
+                    Task { @MainActor in await self.updateDevice(ipAddress: device.ipAddress, arpMap: arpMap, isOnline: true, openPorts: device.openPorts.map { $0.number }, discoverySource: .nio) }
+                }
+
+                // --- Stage: ICMP fallback for hosts that didn't respond to TCP probes ---
+                // Some hosts don't have any of the probed TCP ports open but will respond to ICMP.
+                // Run a SystemPingScanner for remaining hosts and merge results as discovery source `.ping`.
+                do {
+                    let discoveredAfterNIO = Set(self.devices.filter { $0.isOnline }.map { $0.ipAddress })
+                    print("[ScanViewModel] Running ICMP fallback, skipping already-discovered: \(discoveredAfterNIO.count) ips")
+                    let icmpScanner = SystemPingScanner()
+                    _ = try await icmpScanner.scanSubnet(info: info, concurrency: 16, skipIPs: discoveredAfterNIO) { progress in
+                        Task { @MainActor in self.progressText = "ICMP: \(progress.scanned)/\(totalHosts)" }
+                    } onDeviceFound: { device in
+                        Task { @MainActor in
+                            await self.updateDevice(ipAddress: device.ipAddress, arpMap: arpMap, isOnline: true, discoverySource: .ping)
+                        }
+                    }
+                    print("[ScanViewModel] ICMP fallback complete.")
+                } catch {
+                    print("[ScanViewModel] ICMP fallback failed: \(error)")
+                }
+
+                await MainActor.run {
+                    self.isScanning = false
+                    self.progressText = "Scan complete."
+                    print("✅ Scan complete! Final device count: \(devices.count)")
+                    print("📋 Final devices: \(devices.map { $0.ipAddress })")
+                }
+                
+            } catch {
+                await MainActor.run {
+                    self.isScanning = false
+                    self.progressText = "Scan failed or cancelled."
+                }
+            }
+        }
+    }
+    
+    func priority(for source: DiscoverySource) -> Int {
+        switch source {
+        case .mdns: return 4
+        case .ssdp: return 3
+        case .arp:  return 2
+        case .nio:  return 1
+        case .ping: return 0
+        case .unknown: fallthrough
+        default: return -1
+        }
+    }
+
+    @MainActor
+    func updateDevice(ipAddress: String, arpMap: [String: String], isOnline: Bool, services: [NetworkService] = [], openPorts: [Int] = [], discoverySource: DiscoverySource = .unknown) async {
+        print("🔄 updateDevice called for IP: \(ipAddress), online: \(isOnline)")
+
+        // Ignore loopback/localhost addresses - they should not appear in the device list
+        let loopbacks: Set<String> = ["127.0.0.1", "::1", "localhost"]
+        if loopbacks.contains(ipAddress) {
+            print("⛔ Skipping loopback address: \(ipAddress)")
+            return
+        }
+
+        // Ignore the network broadcast address if we can compute it from detected network info
+        if let info = networkInfo, let ipAddr = IPv4.parse(info.ip), let mask = IPv4.parse(info.netmask) {
+            let bcast = IPv4.broadcast(ip: ipAddr, mask: mask)
+            let bcastStr = IPv4.format(bcast)
+            if ipAddress == bcastStr {
+                print("⛔ Skipping broadcast address: \(ipAddress)")
+                return
+            }
+        }
+        
+        // Convert [Int] to [Port]
+        let ports: [Port] = openPorts.map { Port(number: $0, serviceName: "unknown", description: "Port \($0)", status: .open) }
+        
+        if let index = devices.firstIndex(where: { $0.ipAddress == ipAddress }) {
+            print("📝 Updating existing device at index \(index)")
+
+            // Respect discovery source priority: only update discoverySource if incoming source has equal/higher priority
+            let currentPriority = priority(for: devices[index].discoverySource)
+            let incomingPriority = priority(for: discoverySource)
+            if incomingPriority >= currentPriority {
+                devices[index].discoverySource = discoverySource
+            }
+
+            devices[index].isOnline = isOnline
+            devices[index].openPorts = ports
+            // Merge incoming services (avoid duplicates by ServiceType and name)
+            for svc in services {
+                if !devices[index].services.contains(where: { $0.type == svc.type && $0.name == svc.name }) {
+                    devices[index].services.append(svc)
+                }
+            }
+            if let mac = arpMap[ipAddress] {
+                devices[index].macAddress = mac
+                let vendor = await self.ouiService.findVendor(for: mac)
+                devices[index].manufacturer = vendor
+
+                // Re-classify based on hostname/vendor/ports
+                let classified = await classifier.classify(hostname: devices[index].hostname, vendor: vendor, openPorts: devices[index].openPorts)
+                devices[index].deviceType = classified
+                // If the device currently only has the IP as its name, prefer vendor or type as a friendly name
+                if devices[index].name == devices[index].ipAddress {
+                    if let vendor = vendor { devices[index].name = vendor }
+                    else if classified != .unknown { devices[index].name = classified.rawValue.capitalized }
+                }
+            }
+            print("✅ Updated device: \(devices[index].name) (\(ipAddress))")
+        } else {
+            print("🆕 Creating new device for IP: \(ipAddress)")
+            let vendor = arpMap[ipAddress] != nil ? await self.ouiService.findVendor(for: arpMap[ipAddress]!) : nil
+            // Classify device if possible
+            let classifiedType = await classifier.classify(hostname: nil, vendor: vendor, openPorts: ports)
+
+            let friendlyName: String
+            if let vendor = vendor {
+                friendlyName = vendor
+            } else if classifiedType != .unknown {
+                friendlyName = classifiedType.rawValue.capitalized
+            } else {
+                friendlyName = ipAddress
+            }
+
+            // Deduplicate incoming services by type and prefer a stable name if possible
+            var uniqueByType: [ServiceType: NetworkService] = [:]
+            for svc in services {
+                if let existing = uniqueByType[svc.type] {
+                    // prefer a non-empty name / longer name as a heuristic
+                    if svc.name.count > existing.name.count {
+                        uniqueByType[svc.type] = svc
+                    }
+                } else {
+                    uniqueByType[svc.type] = svc
+                }
+            }
+            let uniqueServices = Array(uniqueByType.values)
+
+            let newDevice = Device(
+                id: ipAddress,
+                name: friendlyName,
+                ipAddress: ipAddress,
+                discoverySource: discoverySource,
+                rttMillis: nil,
+                hostname: nil,
+                macAddress: arpMap[ipAddress],
+                deviceType: classifiedType,
+                manufacturer: vendor,
+                isOnline: isOnline,
+                services: uniqueServices,
+                firstSeen: Date(),
+                lastSeen: Date(),
+                openPorts: ports
+            )
+            devices.append(newDevice)
+            print("✅ Added new device: \(newDevice.name) (\(ipAddress))")
+            // Kick off a background port scan for this device (only once)
+            startPortScanIfNeeded(for: ipAddress)
+        }
+        // Keep device list sorted by numeric IP ascending
+        devices.sort { a, b in
+            guard let aa = IPv4.parse(a.ipAddress)?.raw, let bb = IPv4.parse(b.ipAddress)?.raw else { return a.ipAddress < b.ipAddress }
+            return aa < bb
+        }
+
+        print("📊 Device list now has \(devices.count) devices")
+        print("📋 Current devices: \(devices.map { $0.ipAddress })")
+
+        // Update derived counts and notify UI
+        updateCounts()
+
+        // Force UI update
+        print("🔄 Sending objectWillChange notification")
+        objectWillChange.send()
+    }
+    
+    private func createPersistentDevice(id: String, ipAddress: String, macAddress: String?, vendor: String?, deviceType: DeviceType) async {
+    guard let ctx = modelContext else { return }
+    let newDevice = PersistentDevice(id: id, ipAddress: ipAddress, macAddress: macAddress, vendor: vendor, deviceType: deviceType.rawValue, firstSeen: Date(), lastSeen: Date())
+    ctx.insert(newDevice)
+    try? ctx.save()
+    }
+    
+    private func updatePersistentDevice(id: String, ipAddress: String, macAddress: String?, vendor: String?, deviceType: DeviceType) async {
+        guard let ctx = modelContext else { return }
+        let fetchDescriptor = FetchDescriptor<PersistentDevice>(predicate: #Predicate { $0.id == id })
+        if let existing = try? ctx.fetch(fetchDescriptor).first {
+            existing.ipAddress = ipAddress
+            existing.lastSeen = Date()
+            if vendor != nil { existing.vendor = vendor }
+            if deviceType != .unknown { existing.deviceType = deviceType.rawValue }
+            try? ctx.save()
+        }
+    }
+
+    func fetchDevicesFromDB(markAsOffline: Bool = false) {
+        guard let ctx = modelContext else { return }
+        let descriptor = FetchDescriptor<PersistentDevice>(sortBy: [SortDescriptor(\.ipAddress, comparator: .lexical)])
+        do {
+            let persistentDevices = try ctx.fetch(descriptor)
+            self.devices = persistentDevices.map { convertToTransient($0, isOnline: !markAsOffline) }
+            // Sort numerically by IP
+            self.devices.sort { a, b in
+                guard let aa = IPv4.parse(a.ipAddress)?.raw, let bb = IPv4.parse(b.ipAddress)?.raw else { return a.ipAddress < b.ipAddress }
+                return aa < bb
+            }
+            updateCounts()
+        } catch {
+            print("[ScanViewModel] Error fetching devices from DB: \(error)")
+        }
+    }
+    
+    private func convertToTransient(_ persistentDevice: PersistentDevice, isOnline: Bool) -> Device {
+        return Device(
+            id: persistentDevice.id,
+            name: persistentDevice.hostname ?? persistentDevice.vendor ?? persistentDevice.ipAddress,
+            ipAddress: persistentDevice.ipAddress,
+            rttMillis: nil,
+            hostname: persistentDevice.hostname,
+            macAddress: persistentDevice.macAddress,
+            deviceType: DeviceType(rawValue: persistentDevice.deviceType ?? "unknown") ?? .unknown,
+            manufacturer: persistentDevice.vendor,
+            isOnline: isOnline,
+            services: [],
+            firstSeen: persistentDevice.firstSeen,
+            lastSeen: persistentDevice.lastSeen,
+            openPorts: []
+        )
+    }
+
+    private func updateCounts() {
+        deviceCount = devices.count
+        onlineCount = devices.filter { $0.isOnline }.count
+        servicesCount = devices.reduce(0) { $0 + $1.services.count }
+    }
+
+    func cancelScan() {
+        scanTask?.cancel()
+    }
+
+    private func startPortScanIfNeeded(for ip: String) {
+        guard !portScanInProgress.contains(ip) && !portScanCompleted.contains(ip) else { return }
+        portScanInProgress.insert(ip)
+
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            let scanner = PortScanner(host: ip)
+            let openPorts = await scanner.scanPorts(portRange: 1...1024)
+            await MainActor.run {
+                // Find device and merge open ports and derived services
+                if let idx = self.devices.firstIndex(where: { $0.ipAddress == ip }) {
+                    // Merge ports
+                    for port in openPorts {
+                        if !self.devices[idx].openPorts.contains(where: { $0.number == port.number }) {
+                            self.devices[idx].openPorts.append(port)
+                        }
+                    }
+                    // Create NetworkService entries from ports
+                    for port in openPorts {
+                        let svcType: ServiceType = (port.serviceName.lowercased() == "http") ? .http : .https
+                        let svc = NetworkService(name: port.serviceName, type: svcType)
+                        if !self.devices[idx].services.contains(where: { $0.name == svc.name && $0.type == svc.type }) {
+                            self.devices[idx].services.append(svc)
+                        }
+                    }
+                    self.updateCounts()
+                    self.objectWillChange.send()
+                }
+                self.portScanInProgress.remove(ip)
+                self.portScanCompleted.insert(ip)
+            }
+        }
+    }
+}

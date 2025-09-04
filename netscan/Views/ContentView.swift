@@ -1,0 +1,269 @@
+import SwiftUI
+import SwiftData
+
+@available(macOS 14.0, *)
+public struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var vm: ScanViewModel
+    @State private var selectedDevice: Device?
+    
+    public init() {
+        // This initializer will be used by AppDelegate
+        _vm = StateObject(wrappedValue: ScanViewModel(modelContext: DataManager.shared.modelContainer.mainContext))
+    }
+
+    // This initializer is specifically for SwiftUI Previews
+    init(inMemory: Bool = false) {
+        let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
+        let container = try! ModelContainer(for: PersistentDevice.self, configurations: config)
+        _vm = StateObject(wrappedValue: ScanViewModel(modelContext: container.mainContext))
+    }
+    
+    public var body: some View {
+        NavigationSplitView {
+            VStack(spacing: 0) {
+                // Network info header - fixed at top
+                header
+                
+                // Control buttons - fixed below header  
+                controls
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                
+                // Device list - expandable content area
+                deviceListSection
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                
+                // Summary footer - fixed at bottom
+                summaryFooter
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+            }
+            .background(Color(NSColor.windowBackgroundColor))
+            .navigationTitle("Network Scanner")
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    Button(action: { vm.detectNetwork() }) {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+            }
+            .onAppear {
+                vm.detectNetwork()
+            }
+        } detail: {
+            if let selectedDevice = selectedDevice {
+                DeviceDetailView(device: selectedDevice)
+            } else {
+                placeholderView
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .navigationSplitViewColumnWidth(min: 350, ideal: 400)
+        .animation(.default, value: vm.devices)
+    }
+    
+    private var deviceListSection: some View {
+        ScrollView {
+            LazyVStack(spacing: 1) {
+                // Debug label removed for production UI
+                
+                ForEach(vm.devices) { device in
+                    Button(action: { selectedDevice = device }) {
+                        DeviceRowView(device: device)
+                    }
+                    .buttonStyle(.plain)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(selectedDevice?.id == device.id ? 
+                                  Color.accentColor.opacity(0.1) : 
+                                  Color.clear)
+                    )
+                    .contentShape(Rectangle())
+                }
+                
+                if vm.devices.isEmpty && !vm.isScanning {
+                    VStack(spacing: 12) {
+                        Image(systemName: "network.slash")
+                            .font(.system(size: 32))
+                            .foregroundColor(.secondary)
+                        
+                        Text("No devices found")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("Click 'Scan' to discover devices on your network")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, 40)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(Color.clear) // Remove the grey background
+    }
+    
+    private var header: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "globe.americas.fill")
+                .foregroundColor(.secondary)
+                .imageScale(.medium)
+            
+            if let networkInfo = vm.networkInfo {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(networkInfo.network)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "wifi")
+                            .foregroundColor(.accentColor)
+                            .imageScale(.small)
+                        
+                        Text(networkInfo.ip)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .fontDesign(.monospaced)
+                    }
+                }
+                
+                Spacer()
+            } else {
+                Text("No Network")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(NSColor.controlBackgroundColor))
+        .overlay(
+            Divider()
+                .frame(maxWidth: .infinity, maxHeight: 1)
+                .background(Color(NSColor.separatorColor)),
+            alignment: .bottom
+        )
+    }
+    
+    private var controls: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                // Left: buttons group - take flexible space
+                HStack(spacing: 8) {
+                    Button(action: { vm.detectNetwork() }) {
+                        Label("Detect", systemImage: "magnifyingglass")
+                            .frame(minWidth: 80)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    
+                    if vm.isScanning {
+                        Button(role: .destructive, action: { vm.cancelScan() }) {
+                            Label("Stop", systemImage: "stop.circle")
+                                .frame(minWidth: 80)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    } else {
+                        Button(action: { vm.startScan() }) {
+                            Label("Scan", systemImage: "dot.radiowaves.left.and.right")
+                                .frame(minWidth: 80)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(vm.networkInfo == nil)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // Right: fixed area for spinner and scan progress
+                HStack(spacing: 8) {
+                    // Show numeric/phase progress when available, otherwise show a simple status.
+                    Text(vm.isScanning ? (vm.progressText.isEmpty ? "Scanning" : vm.progressText) : "Idle")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+
+                    Group {
+                        if vm.isScanning {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .secondary))
+                                .frame(width: 8, height: 8)
+                                .scaleEffect(0.8, anchor: .center)
+                                .controlSize(.small)
+                                .baselineOffset(-1)
+                        } else {
+                            Color.clear.frame(width: 8, height: 8)
+                        }
+                    }
+                    .padding(.leading, 4)
+                }
+                .frame(width: 220, alignment: .trailing)
+            }
+            .padding(.top, 4)
+        }
+    }
+    
+    private var summaryFooter: some View {
+        HStack(spacing: 20) {
+            StatBlock(count: vm.deviceCount, title: "Devices")
+            StatBlock(count: vm.onlineCount, title: "Online")
+            StatBlock(count: vm.servicesCount, title: "Services")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(NSColor.controlBackgroundColor))
+        .frame(maxWidth: .infinity)
+    }
+    
+    private var placeholderView: some View {
+        ZStack {
+            // Keep the placeholder inside the column's safe area so it doesn't paint over the
+            // titlebar or other system chrome. This avoids the 'floating panel' visual.
+            Theme.color(.bgRoot)
+            VStack(spacing: Theme.space(.md)) {
+                Image(systemName: "network")
+                    .font(.system(size: 48))
+                    .foregroundColor(Theme.color(.textTertiary))
+                Text("Select a Device")
+                    .font(Theme.Typography.title)
+                    .foregroundColor(Theme.color(.textPrimary))
+                Text("Choose a device from the list to see more information.")
+                    .font(Theme.Typography.body)
+                    .foregroundColor(Theme.color(.textSecondary))
+                    .multilineTextAlignment(.center)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+struct StatBlock: View {
+    let count: Int
+    let title: String
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("\(count)")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(minWidth: 60)
+    }
+}
+
+#Preview {
+    ContentView(inMemory: true)
+}
