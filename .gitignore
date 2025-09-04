@@ -1,0 +1,66 @@
+# Xcode
+.DS_Store
+build/
+*.xcarchive
+*.ipa
+*.app
+DerivedData/
+# User settings
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Xcode project workspace/IDE files often generated
+*.xcworkspace/xcuserdata/
+
+# Swift Package Manager
+.build/
+/.build
+Packages/
+.swiftpm/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# Temporary files
+*.swp
+*~
+*.tmp
+*.log
+
+# macOS
+*.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code
+.vscode/
+.history/
+
+# Secrets / environment
+.env
+.env.*
+
+# Other
+*.pdf
+*.xcdebugger
+
+# Ignore build product directories that may exist in repo root
+build/
+
+# Ignore generated SPM workspace results
+xcshareddata/swiftpm/
+
+# Optional: ignore package.resolved if you prefer it to be machine-local
+# (uncomment if you do NOT want to track it)
+# Package.resolved
