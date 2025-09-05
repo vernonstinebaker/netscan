@@ -14,16 +14,27 @@ public struct DeviceFilterOptions: Sendable, Equatable {
     }
 
     public func apply(to devices: [Device]) -> [Device] {
-        var list = devices
+    var list = devices
+    // DEBUG: log incoming devices and filter options when running tests
+    #if DEBUG
+    print("[DeviceFilterOptions] apply called with onlineOnly=\(onlineOnly), deviceType=\(String(describing: deviceType)), source=\(String(describing: source)), searchText='\(searchText)'")
+    print("[DeviceFilterOptions] incoming device ids=\(devices.map { $0.id }) types=\(devices.map { $0.deviceType.rawValue })")
+    #endif
         if onlineOnly { list = list.filter { $0.isOnline } }
         if let t = deviceType { list = list.filter { $0.deviceType == t } }
         if let s = source { list = list.filter { $0.discoverySource == s } }
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         if !q.isEmpty {
             let lower = q.lowercased()
+            // If the query looks like an IPv4 address (digits and dots only), do an exact equality
+            let isIPAddressQuery = q.range(of: "^[0-9.]+$", options: .regularExpression) != nil
             list = list.filter { d in
                 if d.name.lowercased().contains(lower) { return true }
-                if d.ipAddress.lowercased().contains(lower) { return true }
+                if isIPAddressQuery {
+                    if d.ipAddress == q { return true }
+                } else {
+                    if d.ipAddress.lowercased().contains(lower) { return true }
+                }
                 if (d.manufacturer ?? "").lowercased().contains(lower) { return true }
                 if (d.hostname ?? "").lowercased().contains(lower) { return true }
                 if (d.macAddress ?? "").lowercased().contains(lower) { return true }

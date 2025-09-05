@@ -260,27 +260,34 @@ final class ScanViewModel: ObservableObject {
                     devices[index].services.append(svc)
                 }
             }
+            // Update MAC/manufacturer if present in the ARP map
+            var vendor: String? = devices[index].manufacturer
             if let mac = arpMap[ipAddress] {
                 devices[index].macAddress = mac
-                let vendor = await self.ouiService.findVendor(for: mac)
+                vendor = await self.ouiService.findVendor(for: mac)
                 devices[index].manufacturer = vendor
+            }
 
-                // Re-classify based on hostname/vendor/ports with confidence scoring
-                let (classified, confidence) = await classifier.classifyWithConfidence(
-                    hostname: devices[index].hostname, 
-                    vendor: vendor, 
-                    openPorts: devices[index].openPorts,
-                    services: devices[index].services
-                )
-                devices[index].deviceType = classified
-                devices[index].confidence = confidence
-                
-                // Generate fingerprints
-                let fingerprints = await classifier.fingerprintServices(
-                    services: devices[index].services,
-                    openPorts: devices[index].openPorts
-                )
-                devices[index].fingerprints = fingerprints
+            // Re-classify based on hostname/vendor/ports/services with confidence scoring
+            let (classified, confidence) = await classifier.classifyWithConfidence(
+                hostname: devices[index].hostname,
+                vendor: vendor,
+                openPorts: devices[index].openPorts,
+                services: devices[index].services
+            )
+            devices[index].deviceType = classified
+            devices[index].confidence = confidence
+
+            // Generate fingerprints
+            let fingerprints = await classifier.fingerprintServices(
+                services: devices[index].services,
+                openPorts: devices[index].openPorts
+            )
+            devices[index].fingerprints = fingerprints
+
+            // Persist classification if we have a model context and the classification is meaningful
+            if classified != .unknown {
+                Task { await self.updatePersistentDevice(id: devices[index].id, ipAddress: devices[index].ipAddress, macAddress: devices[index].macAddress, vendor: vendor, deviceType: classified) }
             }
             print("✅ Updated device: \(devices[index].name) (\(ipAddress))")
         } else {
@@ -340,6 +347,11 @@ final class ScanViewModel: ObservableObject {
             )
             devices.append(newDevice)
             print("✅ Added new device: \(newDevice.name) (\(ipAddress))")
+            // Persist the device if we have a model context and the classification is meaningful
+            if classifiedType != .unknown {
+                Task { await self.createPersistentDevice(id: newDevice.id, ipAddress: newDevice.ipAddress, macAddress: newDevice.macAddress, vendor: newDevice.manufacturer, deviceType: classifiedType) }
+            }
+
             // Kick off a background port scan for this device (only once)
             startPortScanIfNeeded(for: ipAddress)
         }

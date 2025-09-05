@@ -21,8 +21,11 @@ This document outlines the step-by-step plan to add the additional features depi
   - ✅ Handle connection timeouts and error states
 - [x] **Update `NetworkScanner` Service:**
   - ✅ Integrate the new `PortScanner`
-  - ⏳ Add vendor lookup functionality based on MAC addresses (MAC addresses not collected, OUI database not implemented)
-  - ⏳ Implement logic to determine device type/OS (all devices show as "unknown")
+  - ✅ Add vendor lookup functionality based on MAC addresses (ARP + OUI database integrated)
+  - ✅ Implement basic device type classification (rules using hostname/vendor/ports)
+  - ✅ Add DNS‑SD type discovery to seed Bonjour browsing dynamically
+  - ✅ Add WS‑Discovery probe (UDP 3702) to complement SSDP
+  - ✅ Overlap ARP with Bonjour/SSDP/WS‑Discovery for earlier enrichment
 
 ### 3. ViewModels - ✅ COMPLETE
 
@@ -65,23 +68,23 @@ This document outlines the step-by-step plan to add the additional features depi
   - ✅ Update actor isolation patterns
   - ✅ Clean up debug logging
   - ✅ Resolve all build warnings
+  - ✅ Treat warnings as errors (Swift and C)
 
 ## 🚀 NEXT STEPS: Advanced Features & Polish
 
 ### 6. Enhanced Device Detection
 
-- [ ] **MAC Address Vendor Lookup:**
-  - Implement OUI (Organizationally Unique Identifier) database
-  - Add vendor identification for network devices
-  - Cache vendor data for performance
-- [ ] **Service Detection Enhancement:**
-  - Improve service name detection accuracy
-  - Add version detection for common services
-  - Implement service fingerprinting
-- [ ] **Device Type Classification:**
-  - Enhance OS detection algorithms
-  - Add device capability detection (IoT, mobile, desktop)
-  - Implement confidence scoring for classifications
+- [x] **MAC Address Vendor Lookup:**
+  - ✅ OUI (Organizationally Unique Identifier) database bundled and parsed
+  - ✅ Vendor identification integrated with ARP MAC parsing
+  - ✅ In‑memory vendor cache for performance
+- [x] **Service Detection Enhancement:**
+  - ✅ Improve service name detection accuracy (central ServiceMapper; port‑based mapping)
+  - ⏳ Version detection for common services
+  - ⏳ Service fingerprinting
+- [x] **Device Type Classification:**
+  - ✅ Initial rules using hostname/vendor/ports
+  - ⏳ Add capability/OS detection depth and confidence scoring
 
 ### 7. Performance & Reliability
 
@@ -91,9 +94,8 @@ This document outlines the step-by-step plan to add the additional features depi
   - ✅ Optimize network discovery with skipIPs to avoid redundant scanning
   - [ ] Add advanced performance tuning options
 - [ ] **Caching & Persistence:**
-  - Cache device information between scans
-  - Persist scan results to disk
-  - Add scan history and comparison features
+  - ⏳ Persist device information between scans via SwiftData integration
+  - ⏳ Add scan history and comparison features
 - [ ] **Error Handling & Recovery:**
   - Improve error handling for network timeouts
   - Add retry logic for failed scans
@@ -101,10 +103,10 @@ This document outlines the step-by-step plan to add the additional features depi
 
 ### 8. User Experience Enhancements
 
-- [ ] **Advanced Filtering & Search:**
-  - Add device filtering by type, status, vendor
-  - Implement search functionality
-  - Add custom device grouping
+- [x] **Advanced Filtering & Search:**
+  - ✅ Implement search (name, IP, vendor, hostname, MAC, services)
+  - ✅ Add filters (online only, device type, discovery source)
+  - ⏳ Vendor‑specific filter and custom device grouping
 - [ ] **Export & Reporting:**
   - Export scan results to CSV/JSON
   - Generate network topology reports
@@ -117,11 +119,11 @@ This document outlines the step-by-step plan to add the additional features depi
 
 ### 🎯 **Immediate Next Priorities:**
 
-1.  **MAC Address Collection** - Implement ARP table parsing to collect device MAC addresses
-2.  **OUI Database Integration** - Bundle compressed OUI database for vendor lookup
-3.  **Device Type Classification** - Implement rules engine for device type determination
-4.  **Persistence** - Cache device information between scans and persist results.
-5.  **Advanced UX** - Implement search, filtering, and export capabilities.
+1.  **Persistence** - Persist device information between scans; add history/compare.
+2.  **Service Insight** - Version detection and lightweight fingerprinting for common services.
+3.  **Classification** - Deeper OS/capability detection with confidence scoring.
+4.  **Performance** - Advanced tuning (dynamic concurrency, large subnet strategies).
+5.  **Advanced UX** - Vendor filter, custom grouping, export/reporting.
 
 ---
 
@@ -140,5 +142,5 @@ This section tracks incremental fixes and tests as they land.
 - [x] Reliability: Make per-host port scans cancellable via DI in `ScanViewModel`
   - [x] Inject `portScannerFactory` and track child tasks; cancel on `cancelScan()`
   - [x] Unit tests using a fake scanner to verify cancellation and state cleanup
-- [ ] Polish: Gate noisy logs under `#if DEBUG` for Bonjour, SSDP, OUI, NIO scanners
-- [ ] Tests: Run full test suite after each step; keep ROADMAP updated.
+- [x] Polish: Gate noisy logs under `#if DEBUG` for Bonjour, SSDP, OUI (selective), scanners
+- [x] Tests: Updated and added unit tests for mapping, merging, prober, WS‑Discovery parsing, filtering; full suite runs clean
