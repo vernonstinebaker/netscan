@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import SwiftData
 import Combine
 
@@ -79,9 +80,9 @@ final class ScanViewModel: ObservableObject {
                 let bonjourResults = await bonjourTask
                 if !bonjourResults.isEmpty {
                     print("📱 Bonjour found: \(bonjourResults.count) devices: \(bonjourResults.keys)")
-                    for (ip, services) in bonjourResults {
+                    for (ip, host) in bonjourResults {
                         try Task.checkCancellation()
-                        await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, services: services, discoverySource: .mdns)
+                        await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, hostname: host.hostname, services: host.services, discoverySource: .mdns)
                     }
                 }
 
@@ -156,7 +157,14 @@ final class ScanViewModel: ObservableObject {
                 progressText = "Discovering new devices..."
                 print("🔍 Starting full network scan for \(totalHosts) hosts...")
                 
-                _ = try await self.nioScanner.scanSubnet(info: info, concurrency: 32, skipIPs: alreadyOnlineIPs) { progress in
+                // Adjust concurrency based on subnet size for better responsiveness
+                let total = totalHosts
+                let effectiveConcurrency: Int = {
+                    if total <= 256 { return 64 }
+                    if total <= 1024 { return 32 }
+                    return 16
+                }()
+                _ = try await self.nioScanner.scanSubnet(info: info, concurrency: effectiveConcurrency, skipIPs: alreadyOnlineIPs) { progress in
                     Task { @MainActor in self.progressText = "Port Scan: \(progress.scanned)/\(totalHosts)" }
                 } onDeviceFound: { device in
                     Task { @MainActor in await self.updateDevice(ipAddress: device.ipAddress, arpMap: arpMap, isOnline: true, openPorts: device.openPorts.map { $0.number }, discoverySource: .nio) }
@@ -210,7 +218,7 @@ final class ScanViewModel: ObservableObject {
     }
 
     @MainActor
-    func updateDevice(ipAddress: String, arpMap: [String: String], isOnline: Bool, services: [NetworkService] = [], openPorts: [Int] = [], discoverySource: DiscoverySource = .unknown) async {
+    func updateDevice(ipAddress: String, arpMap: [String: String], isOnline: Bool, hostname: String? = nil, services: [NetworkService] = [], openPorts: [Int] = [], discoverySource: DiscoverySource = .unknown) async {
         print("🔄 updateDevice called for IP: \(ipAddress), online: \(isOnline)")
 
         // Ignore loopback/localhost addresses - they should not appear in the device list
@@ -244,6 +252,9 @@ final class ScanViewModel: ObservableObject {
             }
 
             devices[index].isOnline = isOnline
+            if let hn = hostname, (devices[index].hostname == nil || devices[index].hostname?.isEmpty == true) {
+                devices[index].hostname = hn
+            }
             // Merge incoming open ports; avoid clobbering existing ports when incoming is empty
             if !ports.isEmpty {
                 var merged = devices[index].openPorts
@@ -290,6 +301,10 @@ final class ScanViewModel: ObservableObject {
                 Task { await self.updatePersistentDevice(id: devices[index].id, ipAddress: devices[index].ipAddress, macAddress: devices[index].macAddress, vendor: vendor, deviceType: classified) }
             }
             print("✅ Updated device: \(devices[index].name) (\(ipAddress))")
+            // Attempt reverse DNS if hostname is unknown
+            if devices[index].hostname == nil {
+                resolveHostnameIfPossible(for: ipAddress)
+            }
         } else {
             print("🆕 Creating new device for IP: \(ipAddress)")
             let vendor = arpMap[ipAddress] != nil ? await self.ouiService.findVendor(for: arpMap[ipAddress]!) : nil
@@ -333,7 +348,7 @@ final class ScanViewModel: ObservableObject {
                 ipAddress: ipAddress,
                 discoverySource: discoverySource,
                 rttMillis: nil,
-                hostname: nil,
+                hostname: hostname,
                 macAddress: arpMap[ipAddress],
                 deviceType: classifiedType,
                 manufacturer: vendor,
@@ -354,6 +369,8 @@ final class ScanViewModel: ObservableObject {
 
             // Kick off a background port scan for this device (only once)
             startPortScanIfNeeded(for: ipAddress)
+            // Attempt reverse DNS if hostname is unknown
+            resolveHostnameIfPossible(for: ipAddress)
         }
         // Keep device list sorted by numeric IP ascending
         devices.sort { a, b in
@@ -370,6 +387,52 @@ final class ScanViewModel: ObservableObject {
         // Force UI update
         print("🔄 Sending objectWillChange notification")
         objectWillChange.send()
+    }
+
+    // Reverse DNS lookup to populate hostname and trigger re-classification
+    private func resolveHostnameIfPossible(for ip: String) {
+        Task.detached { [weak self] in
+            guard let self = self else { return }
+            var addr = sockaddr_in()
+            addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+            addr.sin_family = sa_family_t(AF_INET)
+            _ = ip.withCString { inet_pton(AF_INET, $0, &addr.sin_addr) }
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            var sa = unsafeBitCast(addr, to: sockaddr.self)
+            let r = withUnsafePointer(to: &sa) { ptr -> Int32 in
+                ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { p in
+                    getnameinfo(p, socklen_t(MemoryLayout<sockaddr_in>.size), &host, socklen_t(host.count), nil, 0, NI_NAMEREQD)
+                }
+            }
+            if r == 0 {
+                let name = String(cString: host)
+                await MainActor.run {
+                    if let idx = self.devices.firstIndex(where: { $0.ipAddress == ip }) {
+                        self.devices[idx].hostname = name
+                        // Reclassify with hostname
+                        Task { [weak self] in
+                            guard let self = self else { return }
+                            let d = self.devices[idx]
+                            let (t, conf) = await self.classifier.classifyWithConfidence(
+                                hostname: d.hostname,
+                                vendor: d.manufacturer,
+                                openPorts: d.openPorts,
+                                services: d.services
+                            )
+                            await MainActor.run {
+                                self.devices[idx].deviceType = t
+                                self.devices[idx].confidence = conf
+                                if self.devices[idx].name == self.devices[idx].ipAddress {
+                                    if let vendor = self.devices[idx].manufacturer { self.devices[idx].name = vendor }
+                                    else if t != .unknown { self.devices[idx].name = t.rawValue.capitalized }
+                                }
+                                self.objectWillChange.send()
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     
     private func createPersistentDevice(id: String, ipAddress: String, macAddress: String?, vendor: String?, deviceType: DeviceType) async {
@@ -463,6 +526,27 @@ final class ScanViewModel: ObservableObject {
                         let svc = NetworkService(name: port.serviceName, type: svcType, port: port.number)
                         if !self.devices[idx].services.contains(where: { $0.type == svc.type && $0.port == svc.port }) {
                             self.devices[idx].services.append(svc)
+                        }
+                    }
+                    // Re-classify after new evidence (ports/services) is added
+                    Task { [weak self] in
+                        guard let self = self else { return }
+                        let d = self.devices[idx]
+                        let (newType, conf) = await self.classifier.classifyWithConfidence(
+                            hostname: d.hostname,
+                            vendor: d.manufacturer,
+                            openPorts: d.openPorts,
+                            services: d.services
+                        )
+                        let fps = await self.classifier.fingerprintServices(services: d.services, openPorts: d.openPorts)
+                        await MainActor.run {
+                            self.devices[idx].deviceType = newType
+                            self.devices[idx].confidence = conf
+                            self.devices[idx].fingerprints = fps
+                            if self.devices[idx].name == self.devices[idx].ipAddress {
+                                if let vendor = self.devices[idx].manufacturer { self.devices[idx].name = vendor }
+                                else if newType != .unknown { self.devices[idx].name = newType.rawValue.capitalized }
+                            }
                         }
                     }
                     self.updateCounts()

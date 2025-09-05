@@ -14,12 +14,68 @@ public struct DeviceDetailView: View {
                 VStack(alignment: .leading, spacing: Theme.space(.xxxl)) {
                     deviceHeader
                     networkInfoSection
+                    identificationSection
                     activeServicesSection
                 }
                 .padding(Theme.space(.xl))
             }
         }
         .navigationTitle("Device Details")
+    }
+
+    private var identificationSection: some View {
+        VStack(alignment: .leading, spacing: Theme.space(.lg)) {
+            Text("Identification")
+                .font(Theme.Typography.headline)
+                .foregroundColor(Theme.color(.textPrimary))
+
+            VStack(alignment: .leading, spacing: Theme.space(.md)) {
+                HStack {
+                    Text("Type")
+                        .font(Theme.Typography.subheadline)
+                        .foregroundColor(Theme.color(.textSecondary))
+                    Spacer()
+                    Text(device.deviceType.rawValue.capitalized)
+                        .font(Theme.Typography.subheadline)
+                        .foregroundColor(Theme.color(.textPrimary))
+                }
+                if let conf = device.confidence {
+                    VStack(alignment: .leading) {
+                        Text("Confidence")
+                            .font(Theme.Typography.subheadline)
+                            .foregroundColor(Theme.color(.textSecondary))
+                        #if os(macOS)
+                        Gauge(value: conf, in: 0...1) {
+                            Text(String(format: "%.0f%%", conf * 100))
+                        }
+                        .gaugeStyle(.accessoryLinear)
+                        #else
+                        Gauge(value: conf, in: 0...1) {
+                            Text(String(format: "%.0f%%", conf * 100))
+                        }
+                        #endif
+                    }
+                }
+                if let fps = device.fingerprints, !fps.isEmpty {
+                    VStack(alignment: .leading, spacing: Theme.space(.xs)) {
+                        ForEach(fps.keys.sorted(), id: \.self) { key in
+                            HStack {
+                                Text(key.replacingOccurrences(of: "_", with: " ").capitalized)
+                                    .font(Theme.Typography.caption)
+                                    .foregroundColor(Theme.color(.textSecondary))
+                                Spacer()
+                                Text(fps[key] ?? "")
+                                    .font(Theme.Typography.caption)
+                                    .foregroundColor(Theme.color(.textPrimary))
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(Theme.space(.lg))
+            .background(Theme.color(.bgCard))
+            .cornerRadius(Theme.radius(.lg))
+        }
     }
     
     private var deviceHeader: some View {

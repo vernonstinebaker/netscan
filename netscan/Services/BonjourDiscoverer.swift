@@ -2,6 +2,11 @@
 import Foundation
 import Darwin
 
+public struct BonjourHostResult: Sendable {
+    public let hostname: String?
+    public let services: [NetworkService]
+}
+
 public actor BonjourDiscoverer {
     public init() {}
 
@@ -28,7 +33,7 @@ public actor BonjourDiscoverer {
         ]
     }
 
-    public func discover(timeout: TimeInterval = 2.0, serviceTypes: [String]? = nil) async -> [String: [NetworkService]] {
+    public func discover(timeout: TimeInterval = 2.0, serviceTypes: [String]? = nil) async -> [String: BonjourHostResult] {
         let types: [String]
         if let provided = serviceTypes {
             types = provided
@@ -47,7 +52,7 @@ public actor BonjourDiscoverer {
         try? await Task.sleep(nanoseconds: UInt64(max(0, timeout)) * 1_000_000_000)
 
         // Stop and read results on MainActor
-        let results: [String: [NetworkService]] = await MainActor.run {
+        let results: [String: BonjourHostResult] = await MainActor.run {
             collector.stop()
             debugLog("BonjourDiscoverer: Found \(collector.collected.count) IPs: \(collector.collected.keys)")
             return collector.collected
@@ -61,8 +66,8 @@ private final class BonjourCollector: NSObject, @preconcurrency NetServiceBrowse
     private let serviceTypes: [String]
     private var browsers: [NetServiceBrowser] = []
     private var services: Set<NetService> = []
-    // Map IP -> [NetworkService]
-    private(set) var collected: [String: [NetworkService]] = [:]
+    // Map IP -> hostname + [NetworkService]
+    private(set) var collected: [String: BonjourHostResult] = [:]
 
     init(serviceTypes: [String]) {
         self.serviceTypes = serviceTypes
@@ -134,12 +139,13 @@ private final class BonjourCollector: NSObject, @preconcurrency NetServiceBrowse
                     if svcType != .unknown {
                         let port = sender.port > 0 ? Int(sender.port) : nil
                         let networkService = NetworkService(name: sender.name, type: svcType, port: port)
-                        var list = collected[ip] ?? []
-                        // avoid duplicates by service type+name
-                        if !list.contains(where: { $0.type == networkService.type && $0.port == networkService.port && $0.name == networkService.name }) {
-                            list.append(networkService)
+                        let current = collected[ip]
+                        var newServices = current?.services ?? []
+                        if !newServices.contains(where: { $0.type == networkService.type && $0.port == networkService.port && $0.name == networkService.name }) {
+                            newServices.append(networkService)
                         }
-                        collected[ip] = list
+                        let hostName = sender.hostName
+                        collected[ip] = BonjourHostResult(hostname: current?.hostname ?? hostName, services: newServices)
                     }
                 }
             }
