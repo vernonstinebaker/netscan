@@ -14,7 +14,7 @@ final class NetworkScannerTests: XCTestCase {
 
         // Pretend only 192.168.1.2 is alive
         let aliveSet: Set<String> = ["192.168.1.2"]
-        let fakeProbe: NetworkScanner.ProbeFunc = { ip, _, _ in
+        let fakeProbe: NetworkScanner.ProbeFunc = { ip, _ in
             if aliveSet.contains(ip) { return .alive(1.0) }
             return .dead
         }
@@ -27,7 +27,7 @@ final class NetworkScannerTests: XCTestCase {
         let scanner = NetworkScanner(timeout: 0.1, probe: fakeProbe, portScan: fakePortScan)
         var progressEvents: [NetworkScanner.Progress] = []
 
-        let devices = await scanner.scanSubnet(info: info, concurrency: 2, port: 80, onProgress: { p in
+        let devices = await scanner.scanSubnet(info: info, concurrency: 2, onProgress: { p in
             progressEvents.append(p)
         })
 

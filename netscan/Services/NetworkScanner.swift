@@ -4,26 +4,32 @@ import Network
 public actor NetworkScanner {
     public struct Progress: Sendable { public let scanned: Int; public let total: Int }
 
-    public typealias ProbeFunc = @Sendable (_ ip: String, _ port: UInt16, _ timeout: TimeInterval) async -> NetworkFrameworkProber.Result
+    public typealias ProbeFunc = @Sendable (_ ip: String, _ timeout: TimeInterval) async -> NetworkFrameworkProber.Result
     public typealias PortScanFunc = @Sendable (_ host: String) async -> [Port]
 
     private let probe: ProbeFunc
     private let portScan: PortScanFunc
     private let timeout: TimeInterval
 
-    public init(timeout: TimeInterval = 0.75, probe: @escaping ProbeFunc = { ip, port, timeout in await NetworkFrameworkProber.probe(ip: ip, port: port, timeout: timeout) }) {
+    public init(timeout: TimeInterval = 0.5, probe: @escaping ProbeFunc = { ip, timeout in
+        if let (alive, rtt) = await SimplePing.ping(host: ip, timeout: timeout) {
+            return alive ? .alive(rtt) : .dead
+        } else {
+            return .dead
+        }
+    }) {
         self.timeout = timeout
         self.probe = probe
         self.portScan = { host in await PortScanner(host: host).scanPorts(portRange: 1...1024) }
     }
 
-    public init(timeout: TimeInterval = 0.75, probe: @escaping ProbeFunc = { ip, port, timeout in await NetworkFrameworkProber.probe(ip: ip, port: port, timeout: timeout) }, portScan: @escaping PortScanFunc) {
+    public init(timeout: TimeInterval = 0.75, probe: @escaping ProbeFunc, portScan: @escaping PortScanFunc) {
         self.timeout = timeout
         self.probe = probe
         self.portScan = portScan
     }
 
-    public func scanSubnet(info: NetworkInfo, concurrency: Int = 64, port: UInt16 = 80, onProgress: ((Progress) -> Void)? = nil) async -> [Device] {
+    public func scanSubnet(info: NetworkInfo, concurrency: Int = 64, onProgress: ((Progress) -> Void)? = nil) async -> [Device] {
         let parsed = await MainActor.run { (IPv4.parse(info.ip), IPv4.parse(info.netmask)) }
         guard let ip = parsed.0, let mask = parsed.1 else {
             print("[NetworkScanner] Failed to parse IP or netmask: ip=\(info.ip) mask=\(info.netmask)")
@@ -33,7 +39,7 @@ public actor NetworkScanner {
         let hosts = await MainActor.run { IPv4.hosts(inNetwork: network, mask: mask) }
         let total = hosts.count
         let header: String = await MainActor.run {
-            "[NetworkScanner] Starting scan: network=\(IPv4.format(network)) mask=/\(IPv4.netmaskPrefix(mask)) totalHosts=\(total) port=\(port) concurrency=\(concurrency)"
+            "[NetworkScanner] Starting scan: network=\(IPv4.format(network)) mask=/\(IPv4.netmaskPrefix(mask)) totalHosts=\(total) concurrency=\(concurrency)"
         }
         print(header)
         var scanned = 0
@@ -51,7 +57,7 @@ public actor NetworkScanner {
                     let ipStr = await MainActor.run { IPv4.format(hosts[i]) }
                     group.addTask { [timeout] in
                         if Task.isCancelled { return nil }
-                        let res = await doProbe(ipStr, port, timeout)
+                        let res = await doProbe(ipStr, timeout)
                         switch res {
                         case .alive(let ms):
                             let openPorts = await self.portScan(ipStr)

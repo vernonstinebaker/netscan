@@ -11,19 +11,15 @@ final class DeviceFilterTests: XCTestCase {
 
         var opts = DeviceFilterOptions(onlineOnly: true, deviceType: .laptop)
         var result = opts.apply(to: devices)
-    // DEBUG: print result for diagnosis
-    print("[DeviceFilterTests] onlineOnly & deviceType=laptop -> result ids=\(result.map { $0.id }) types=\(result.map { $0.deviceType.rawValue })")
-    XCTAssertEqual(result.map { $0.id }, ["2"]) // only online laptop
+        XCTAssertEqual(result.map { $0.id }, ["2"]) // only online laptop
 
         opts = DeviceFilterOptions(searchText: "192.168.1.1")
         result = opts.apply(to: devices)
-    print("[DeviceFilterTests] searchText=192.168.1.1 -> result ids=\(result.map { $0.id })")
-    XCTAssertEqual(result.map { $0.id }, ["1"]) // query by ip
+        XCTAssertEqual(result.map { $0.id }, ["1"]) // query by ip
 
         opts = DeviceFilterOptions(searchText: "apple")
         result = opts.apply(to: devices)
-    print("[DeviceFilterTests] searchText=apple -> result ids=\(result.map { $0.id })")
-    XCTAssertEqual(result.map { $0.id }, ["2"]) // manufacturer match
+        XCTAssertEqual(result.map { $0.id }, ["2"]) // manufacturer match
     }
 }
 

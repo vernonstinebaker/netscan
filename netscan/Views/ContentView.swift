@@ -1,17 +1,21 @@
 import SwiftUI
+import SwiftData
 
 @available(macOS 14.0, *)
 public struct ContentView: View {
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var vm: ScanViewModel
     @State private var selectedDevice: Device?
     
-    public init() {
-        _vm = StateObject(wrappedValue: ScanViewModel())
+    public init(modelContext: ModelContext) {
+        _vm = StateObject(wrappedValue: ScanViewModel(modelContext: modelContext))
     }
 
     // This initializer is specifically for SwiftUI Previews
     init(inMemory: Bool = false) {
-        _vm = StateObject(wrappedValue: ScanViewModel())
+        let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
+        let container = try! ModelContainer(for: PersistentDevice.self, configurations: config)
+        _vm = StateObject(wrappedValue: ScanViewModel(modelContext: container.mainContext))
     }
     
     public var body: some View {
@@ -27,10 +31,6 @@ public struct ContentView: View {
                     controls
                         .padding(.horizontal, Theme.space(.lg))
                         .padding(.vertical, Theme.space(.md))
-                    
-                    searchAndFilterControls
-                        .padding(.horizontal, Theme.space(.lg))
-                        .padding(.bottom, Theme.space(.md))
 
                     ScrollView {
                         LazyVStack(spacing: Theme.space(.md)) {
@@ -99,112 +99,30 @@ public struct ContentView: View {
             Button(action: { vm.detectNetwork() }) {
                 Label("Detect", systemImage: "magnifyingglass")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .tint(Theme.color(.accentPrimary))
             
             if vm.isScanning {
                 Button(role: .destructive, action: { vm.cancelScan() }) {
                     Label("Stop", systemImage: "stop.circle")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .buttonStyle(.bordered)
             } else {
                 Button(action: { vm.startScan() }) {
                     Label("Scan", systemImage: "dot.radiowaves.left.and.right")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.color(.accentPrimary))
+                .buttonStyle(.bordered)
                 .disabled(vm.networkInfo == nil)
             }
             
             Spacer()
             
-            if vm.isScanning {
-                VStack(spacing: 4) {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text(vm.progressText)
-                        .font(Theme.Typography.caption)
-                        .foregroundColor(Theme.color(.textSecondary))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: 200)
-                }
-            } else {
-                Text("\(vm.onlineCount) online")
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.color(.textTertiary))
+            ZStack {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .opacity(vm.isScanning ? 1.0 : 0.0)
             }
-        }
-    }
-    
-    private var searchAndFilterControls: some View {
-        VStack(spacing: Theme.space(.md)) {
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(Theme.color(.textTertiary))
-                
-                TextField("Search devices, IPs, services...", text: $vm.filterOptions.searchText)
-                    .textFieldStyle(.plain)
-                    .foregroundColor(Theme.color(.textPrimary))
-                
-                if !vm.filterOptions.searchText.isEmpty {
-                    Button(action: { vm.filterOptions.searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(Theme.color(.textTertiary))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(Theme.space(.md))
-            .background(Theme.color(.bgElevated))
-            .cornerRadius(Theme.radius(.lg))
-            
-            // Filter controls
-            HStack(spacing: Theme.space(.md)) {
-                // Online filter
-                Toggle("Online Only", isOn: $vm.filterOptions.onlineOnly)
-                    .toggleStyle(.switch)
-                    .foregroundColor(Theme.color(.textSecondary))
-                
-                Spacer()
-                
-                // Device type filter
-                Menu {
-                    Button("All Types") {
-                        vm.filterOptions.deviceType = nil
-                    }
-                    ForEach(DeviceType.allCases, id: \.self) { type in
-                        Button(type.rawValue.capitalized) {
-                            vm.filterOptions.deviceType = type
-                        }
-                    }
-                } label: {
-                    HStack {
-                        Text(vm.filterOptions.deviceType?.rawValue.capitalized ?? "All Types")
-                        Image(systemName: "chevron.down")
-                    }
-                    .foregroundColor(Theme.color(.textSecondary))
-                }
-                
-                // Discovery source filter
-                Menu {
-                    Button("All Sources") {
-                        vm.filterOptions.source = nil
-                    }
-                    ForEach([DiscoverySource.mdns, .arp, .ssdp, .nio, .ping], id: \.self) { source in
-                        Button(source.rawValue) {
-                            vm.filterOptions.source = source
-                        }
-                    }
-                } label: {
-                    HStack {
-                        Text(vm.filterOptions.source?.rawValue ?? "All Sources")
-                        Image(systemName: "chevron.down")
-                    }
-                    .foregroundColor(Theme.color(.textSecondary))
-                }
-            }
+            .frame(width: 24, height: 24)
         }
     }
     

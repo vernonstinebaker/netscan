@@ -56,21 +56,7 @@ public struct DeviceDetailView: View {
                         #endif
                     }
                 }
-                if let fps = device.fingerprints, !fps.isEmpty {
-                    VStack(alignment: .leading, spacing: Theme.space(.xs)) {
-                        ForEach(fps.keys.sorted(), id: \.self) { key in
-                            HStack {
-                                Text(key.replacingOccurrences(of: "_", with: " ").capitalized)
-                                    .font(Theme.Typography.caption)
-                                    .foregroundColor(Theme.color(.textSecondary))
-                                Spacer()
-                                Text(fps[key] ?? "")
-                                    .font(Theme.Typography.caption)
-                                    .foregroundColor(Theme.color(.textPrimary))
-                            }
-                        }
-                    }
-                }
+
             }
             .padding(Theme.space(.lg))
             .background(Theme.color(.bgCard))
@@ -132,9 +118,31 @@ public struct DeviceDetailView: View {
     }
 
     private var activeServicesSection: some View {
-        // Use the canonical displayServices from Device which already maps open ports to services
-        // and deduplicates by (type, port). This preserves non-standard ports.
-        let combined = device.displayServices.filter { $0.type != .unknown }
+        // build port-derived services (only map well-known ports)
+        let portDerived: [NetworkService] = device.openPorts.compactMap { port in
+            switch port.number {
+            case 80: return NetworkService(name: port.serviceName, type: .http)
+            case 443: return NetworkService(name: port.serviceName, type: .https)
+            case 22: return NetworkService(name: port.serviceName, type: .ssh)
+            case 1900: return NetworkService(name: port.serviceName, type: .ssdp)
+            case 5353: return NetworkService(name: port.serviceName, type: .mdns)
+            default: return nil
+            }
+        }
+
+    // Combine uniqueServices (from discovery) with port-derived services, deduping by type
+    var map: [ServiceType: NetworkService] = [:]
+    for svc in device.displayServices + portDerived {
+            if let existing = map[svc.type] {
+                // prefer the one with longer name
+                if svc.name.count > existing.name.count {
+                    map[svc.type] = svc
+                }
+            } else {
+                map[svc.type] = svc
+            }
+        }
+        let combined = Array(map.values).filter { $0.type != .unknown }
 
         return VStack(alignment: .leading, spacing: Theme.space(.lg)) {
             Text("Active Services")

@@ -14,48 +14,8 @@ public actor SystemPingScanner {
     }
     
     public func ping(host: String) async -> (Bool, Double)? {
-        #if os(macOS)
-        let process = Foundation.Process()
-        process.executableURL = URL(fileURLWithPath: "/sbin/ping")
-        process.arguments = ["-c", "1", "-t", "1", "-W", "\(Int(timeout * 1000))", host]
-        
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-        
-        do {
-            try process.run()
-            process.waitUntilExit()
-            
-            let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            
-            let output = String(data: outputData, encoding: .utf8) ?? ""
-            let error = String(data: errorData, encoding: .utf8) ?? ""
-            
-            if process.terminationStatus == 0 {
-                // Parse RTT from output like: "64 bytes from 192.168.1.1: icmp_seq=0 ttl=64 time=0.123 ms"
-                if let timeRange = output.range(of: "time=([0-9.]+) ms", options: .regularExpression),
-                   let timeString = output[timeRange].split(separator: "=").last?.split(separator: " ").first,
-                   let rtt = Double(timeString) {
-                    return (true, rtt)
-                }
-                return (true, 0.0) // Alive but couldn't parse RTT
-            } else {
-                // Check if it's unreachable vs timeout
-                if error.contains("Host is down") || error.contains("Destination Host Unreachable") {
-                    return (true, 0.0) // Host exists but unreachable
-                }
-                return nil // Timeout or other error
-            }
-        } catch {
-            return nil
-        }
-        #else
-        // Not supported on non-macOS platforms
-        return nil
-        #endif
+        // Delegate to the SimplePing helper which runs the system ping in a sandbox-friendly way.
+        return await SimplePing.ping(host: host, timeout: timeout)
     }
     
     public func scanSubnet(info: NetworkInfo, concurrency: Int = 16, skipIPs: Set<String> = [], onProgress: ((Progress) -> Void)? = nil, onDeviceFound: ((Device) -> Void)? = nil) async throws -> [Device] {

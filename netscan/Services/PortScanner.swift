@@ -20,25 +20,37 @@ public actor PortScanner: PortScanning {
         let commonPorts: [UInt16] = [21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995]
         let portsToScan = commonPorts.filter { portRange.contains($0) }
         
-        for port in portsToScan {
-            if await isPortOpen(port) {
-                let name = self.getServiceName(for: port)
-                let portInfo = await MainActor.run { Port(number: Int(port), serviceName: name, description: "Open", status: .open) }
-                openPorts.append(portInfo)
+        let host = self.host
+        await withTaskGroup(of: Port?.self) { group in
+            for port in portsToScan {
+                group.addTask { @Sendable [host] in
+                    if await self.isPortOpen(port, host: host) {
+                        let name = self.getServiceName(for: port)
+                        return await MainActor.run { Port(number: Int(port), serviceName: name, description: "Open", status: .open) }
+                    } else {
+                        return nil
+                    }
+                }
+            }
+            for await port in group {
+                if let p = port {
+                    openPorts.append(p)
+                }
             }
         }
         
         return openPorts
     }
     
-    private func isPortOpen(_ port: UInt16) async -> Bool {
+    private nonisolated func isPortOpen(_ port: UInt16, host: NWEndpoint.Host) async -> Bool {
         return await Task.detached {
-            let host = String(describing: self.host)
+            let host = String(describing: host)
             let portValue = in_port_t(port.bigEndian)
             
             // Create socket
             let fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)
             guard fd >= 0 else { return false }
+            guard fd < 1024 else { return false } // FD_SETSIZE limit
             defer { close(fd) }
             
             // Set non-blocking
@@ -63,7 +75,7 @@ public actor PortScanner: PortScanning {
                 return true // Connected immediately
             } else if errno == EINPROGRESS {
                 // Wait for connection with select
-                var tv = timeval(tv_sec: 1, tv_usec: 0)
+                var tv = timeval(tv_sec: 0, tv_usec: 500000)
                 var readfds = fd_set()
                 var writefds = fd_set()
                 
@@ -75,22 +87,22 @@ public actor PortScanner: PortScanning {
                 let wordIndex = Int(fd) / (MemoryLayout<Int32>.size * 8)
                 let bitIndex = Int(fd) % (MemoryLayout<Int32>.size * 8)
                 
-                withUnsafeMutablePointer(to: &writefds) { ptr in
-                    ptr.withMemoryRebound(to: Int32.self, capacity: 32) { intPtr in
-                        intPtr[wordIndex] |= Int32(1 << bitIndex)
-                    }
-                }
+                 withUnsafeMutableBytes(of: &writefds) { buffer in
+                     let intPtr = buffer.bindMemory(to: Int32.self)
+                     let mask: UInt32 = 1 << UInt32(bitIndex)
+                     intPtr[wordIndex] |= Int32(bitPattern: mask)
+                 }
                 
                 let selectResult = Darwin.select(fd + 1, &readfds, &writefds, nil, &tv)
                 
                 if selectResult > 0 {
                     // Check if our fd is set in writefds
                     var isSet = false
-                    withUnsafeMutablePointer(to: &writefds) { ptr in
-                        ptr.withMemoryRebound(to: Int32.self, capacity: 32) { intPtr in
-                            isSet = (intPtr[wordIndex] & Int32(1 << bitIndex)) != 0
-                        }
-                    }
+                     withUnsafeMutableBytes(of: &writefds) { buffer in
+                         let intPtr = buffer.bindMemory(to: Int32.self)
+                         let mask: UInt32 = 1 << UInt32(bitIndex)
+                         isSet = (intPtr[wordIndex] & Int32(bitPattern: mask)) != 0
+                     }
                     
                     if isSet {
                         var soError: Int32 = 0
@@ -106,7 +118,7 @@ public actor PortScanner: PortScanning {
         }.value
     }
     
-    private func getServiceName(for port: UInt16) -> String {
+    private nonisolated func getServiceName(for port: UInt16) -> String {
         switch port {
         case 21: return "ftp"
         case 22: return "ssh"

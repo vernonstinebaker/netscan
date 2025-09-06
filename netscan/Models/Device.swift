@@ -22,8 +22,8 @@ public struct Device: Identifiable, Hashable, Sendable {
         id: String,
         name: String,
         ipAddress: String,
-    discoverySource: DiscoverySource = .unknown,
-        rttMillis: Double?,
+        discoverySource: DiscoverySource = .unknown,
+        rttMillis: Double? = nil,
         hostname: String? = nil,
         macAddress: String? = nil,
         deviceType: DeviceType = .unknown,
@@ -39,7 +39,7 @@ public struct Device: Identifiable, Hashable, Sendable {
         self.id = id
         self.name = name
         self.ipAddress = ipAddress
-    self.discoverySource = discoverySource
+        self.discoverySource = discoverySource
         self.rttMillis = rttMillis
         self.hostname = hostname
         self.macAddress = macAddress
@@ -146,12 +146,13 @@ public enum DiscoverySource: String, Sendable {
 }
 
 public struct NetworkService: Identifiable, Hashable, Sendable, Codable {
-    public var id = UUID()
+    public var id: UUID
     public let name: String
     public let type: ServiceType
     public let port: Int?
     
-    public init(name: String, type: ServiceType, port: Int? = nil) {
+    public init(id: UUID = UUID(), name: String, type: ServiceType, port: Int? = nil) {
+        self.id = id
         self.name = name
         self.type = type
         self.port = port
@@ -171,14 +172,14 @@ public enum ServiceType: String, CaseIterable, Sendable, Codable {
     case unknown = "Unknown"
 }
 
-public struct Port: Identifiable, Hashable, Sendable, Codable {
-    public var id = UUID()
+public struct Port: Identifiable, Hashable, Sendable {
+    public let id = UUID()
     public let number: Int
     public let serviceName: String
     public let description: String
     public let status: Status
 
-    public enum Status: String, Sendable, Codable {
+    public enum Status: String, Sendable {
         case open, closed, filtered
     }
     
@@ -216,9 +217,7 @@ public extension Device {
                 Port(number: 22, serviceName: "SSH", description: "Secure Shell", status: .open),
                 Port(number: 80, serviceName: "HTTP", description: "Web Server", status: .open),
                 Port(number: 443, serviceName: "HTTPS", description: "Secure Web Server", status: .open)
-            ],
-            confidence: 0.9,
-            fingerprints: ["http_ports": "80", "https_ports": "443", "ssh_present": "true"]
+            ]
         )
     }
     

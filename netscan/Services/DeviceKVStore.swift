@@ -1,7 +1,7 @@
 import Foundation
 
 public struct DeviceSnapshot: Codable, Sendable, Hashable {
-    public var id: String
+    public let id: String
     public var ip: String
     public var mac: String?
     public var hostname: String?
@@ -10,9 +10,7 @@ public struct DeviceSnapshot: Codable, Sendable, Hashable {
     public var name: String?
     public var firstSeen: Date
     public var lastSeen: Date
-    public var discoverySource: String?
-    public var servicesData: Data?
-    public var openPortsData: Data?
+    public var services: [NetworkService]
 }
 
 public enum DeviceKVStore {

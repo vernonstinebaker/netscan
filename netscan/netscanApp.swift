@@ -1,15 +1,25 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct netscanApp: App {
+    var sharedModelContainer: ModelContainer = {
+        let schema = Schema([
+            PersistentDevice.self,
+        ])
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+
+        do {
+            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+        } catch {
+            fatalError("Could not create ModelContainer: \(error)")
+        }
+    }()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .preferredColorScheme(.dark)
+            ContentView(modelContext: sharedModelContainer.mainContext)
         }
-        // Ensure the window's titlebar uses a dark appearance on macOS by setting appearance on launch
-        .commands {
-            // No-op but keeps available for future app-level commands
-        }
+        .modelContainer(sharedModelContainer)
     }
 }
