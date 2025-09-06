@@ -145,8 +145,8 @@ public enum DiscoverySource: String, Sendable {
     case unknown = "?"
 }
 
-public struct NetworkService: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+public struct NetworkService: Identifiable, Hashable, Sendable, Codable {
+    public var id = UUID()
     public let name: String
     public let type: ServiceType
     public let port: Int?
@@ -158,7 +158,7 @@ public struct NetworkService: Identifiable, Hashable, Sendable {
     }
 }
 
-public enum ServiceType: String, CaseIterable, Sendable {
+public enum ServiceType: String, CaseIterable, Sendable, Codable {
     case http = "HTTP"
     case https = "HTTPS"
     case ssh = "SSH"
@@ -171,14 +171,14 @@ public enum ServiceType: String, CaseIterable, Sendable {
     case unknown = "Unknown"
 }
 
-public struct Port: Identifiable, Hashable, Sendable {
-    public let id = UUID()
+public struct Port: Identifiable, Hashable, Sendable, Codable {
+    public var id = UUID()
     public let number: Int
     public let serviceName: String
     public let description: String
     public let status: Status
 
-    public enum Status: String, Sendable {
+    public enum Status: String, Sendable, Codable {
         case open, closed, filtered
     }
     

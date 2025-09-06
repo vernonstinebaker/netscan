@@ -1,88 +1,59 @@
 import SwiftUI
-import SwiftData
 
-@available(iOS 17.0, macOS 14.0, *)
+@available(macOS 14.0, *)
 public struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
     @StateObject private var vm: ScanViewModel
     @State private var selectedDevice: Device?
-    // Search & filter state
-    @State private var searchText: String = ""
-    @State private var filterOnlineOnly: Bool = false
-    @State private var filterDeviceType: DeviceType? = nil
-    @State private var filterDiscoverySource: DiscoverySource? = nil
     
     public init() {
-        // This initializer will be used by AppDelegate
-        _vm = StateObject(wrappedValue: ScanViewModel(modelContext: DataManager.shared.modelContainer.mainContext))
+        _vm = StateObject(wrappedValue: ScanViewModel())
     }
 
     // This initializer is specifically for SwiftUI Previews
     init(inMemory: Bool = false) {
-        let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
-        let container = try! ModelContainer(for: PersistentDevice.self, configurations: config)
-        _vm = StateObject(wrappedValue: ScanViewModel(modelContext: container.mainContext))
+        _vm = StateObject(wrappedValue: ScanViewModel())
     }
     
     public var body: some View {
         NavigationSplitView {
-            VStack(spacing: 0) {
-                // Network info header - fixed at top
-                header
+            ZStack(alignment: .bottom) {
+                Theme.color(.bgRoot).ignoresSafeArea()
                 
-                // Control buttons - fixed below header  
-                controls
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                
-                // Device list - expandable content area
-                deviceListSection
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                
-                // Summary footer - fixed at bottom
-                summaryFooter
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-            }
-            .background(Theme.color(.bgRoot))
-            .navigationTitle("Network Scanner")
-            .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    Button(action: { vm.detectNetwork() }) {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
-                ToolbarItem(placement: .automatic) {
-                    Menu {
-                        // Online only toggle
-                        Toggle(isOn: $filterOnlineOnly) { Label("Online Only", systemImage: "dot.radiowaves.left.and.right") }
-                        Divider()
-                        // Device type picker
-                        Picker("Device Type", selection: Binding(get: { filterDeviceType ?? .unknown }, set: { filterDeviceType = ($0 == .unknown ? nil : $0) })) {
-                            Text("All Types").tag(DeviceType.unknown)
-                            ForEach(DeviceType.allCases.filter { $0 != .unknown }, id: \.self) { t in
-                                Text(t.rawValue.capitalized).tag(t)
+                VStack(spacing: 0) {
+                    header
+                        .padding(.horizontal, Theme.space(.lg))
+                        .padding(.top, Theme.space(.lg))
+                    
+                    controls
+                        .padding(.horizontal, Theme.space(.lg))
+                        .padding(.vertical, Theme.space(.md))
+                    
+                    searchAndFilterControls
+                        .padding(.horizontal, Theme.space(.lg))
+                        .padding(.bottom, Theme.space(.md))
+
+                    ScrollView {
+                        LazyVStack(spacing: Theme.space(.md)) {
+                            ForEach(vm.devices) { device in
+                                Button(action: { selectedDevice = device }) {
+                                    DeviceRowView(device: device)
+                                }
+                                .buttonStyle(.plain)
+                                .background(selectedDevice?.id == device.id ? Theme.color(.accentPrimary).opacity(0.1) : .clear)
+                                .cornerRadius(Theme.radius(.xl))
                             }
                         }
-                        // Discovery source picker
-                        Picker("Source", selection: Binding(get: { filterDiscoverySource ?? .unknown }, set: { filterDiscoverySource = ($0 == .unknown ? nil : $0) })) {
-                            Text("All Sources").tag(DiscoverySource.unknown)
-                            Text("mDNS").tag(DiscoverySource.mdns)
-                            Text("SSDP").tag(DiscoverySource.ssdp)
-                            Text("ARP").tag(DiscoverySource.arp)
-                            Text("NIO").tag(DiscoverySource.nio)
-                            Text("Ping").tag(DiscoverySource.ping)
-                        }
-                    } label: {
-                        Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+                        .padding(.horizontal, Theme.space(.lg))
+                        .padding(.bottom, 100)
                     }
-                    .help("Filter devices")
                 }
+                
+                summaryFooter
             }
-            // System search field in toolbar
-            .searchable(text: $searchText, placement: .toolbar, prompt: Text("Search devices"))
+            .navigationTitle("Network Scanner")
             .onAppear {
                 vm.detectNetwork()
+                // vm.startScan() was removed to restore manual Scan button control
             }
         } detail: {
             if let selectedDevice = selectedDevice {
@@ -91,203 +62,169 @@ public struct ContentView: View {
                 placeholderView
             }
         }
-        .navigationSplitViewStyle(.balanced)
-        .navigationSplitViewColumnWidth(min: 350, ideal: 400)
         .animation(.default, value: vm.devices)
     }
     
-    private var deviceListSection: some View {
-        ScrollView {
-            LazyVStack(spacing: 1) {
-                // Debug label removed for production UI
-                
-                ForEach(filteredDevices) { device in
-                    Button(action: { selectedDevice = device }) {
-                        DeviceRowView(device: device)
-                    }
-                    .buttonStyle(.plain)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(selectedDevice?.id == device.id ? 
-                                  Color.accentColor.opacity(0.1) : 
-                                  Color.clear)
-                    )
-                    .contentShape(Rectangle())
-                }
-                
-                if filteredDevices.isEmpty && !vm.isScanning {
-                    VStack(spacing: 12) {
-                        Image(systemName: "network.slash")
-                            .font(.system(size: 32))
-                            .foregroundColor(.secondary)
-                        
-                        Text("No devices found")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        Text("Click 'Scan' to discover devices on your network")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.vertical, 40)
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-        }
-        .background(Color.clear) // Remove the grey background
-    }
-
-    // MARK: - Derived filtered list
-    private var filteredDevices: [Device] {
-        var list = vm.devices
-        // Online filter
-        if filterOnlineOnly { list = list.filter { $0.isOnline } }
-        // Type filter
-        if let t = filterDeviceType { list = list.filter { $0.deviceType == t } }
-        // Source filter
-        if let s = filterDiscoverySource { list = list.filter { $0.discoverySource == s } }
-        // Search text across common fields
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !q.isEmpty {
-            let lower = q.lowercased()
-            list = list.filter { d in
-                if d.name.lowercased().contains(lower) { return true }
-                if d.ipAddress.lowercased().contains(lower) { return true }
-                if (d.manufacturer ?? "").lowercased().contains(lower) { return true }
-                if (d.hostname ?? "").lowercased().contains(lower) { return true }
-                if (d.macAddress ?? "").lowercased().contains(lower) { return true }
-                // services, ports
-                if d.displayServices.contains(where: { $0.type.rawValue.lowercased().contains(lower) || $0.name.lowercased().contains(lower) || (String($0.port ?? -1).contains(lower) && $0.port != nil) }) { return true }
-                return false
-            }
-        }
-        return list
-    }
-    
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack {
             Image(systemName: "globe.americas.fill")
-                .foregroundColor(.secondary)
-                .imageScale(.medium)
+                .foregroundColor(Theme.color(.textTertiary))
             
             if let networkInfo = vm.networkInfo {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(networkInfo.network)
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: "wifi")
-                            .foregroundColor(.accentColor)
-                            .imageScale(.small)
-                        
-                        Text(networkInfo.ip)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .fontDesign(.monospaced)
-                    }
-                }
+                Text(networkInfo.network)
+                    .font(Theme.Typography.subheadline)
+                    .foregroundColor(Theme.color(.textSecondary))
                 
-                Spacer()
+                Image(systemName: "waveform.path.ecg")
+                    .foregroundColor(Theme.color(.accentPrimary))
+                
+                Text(networkInfo.ip)
+                    .font(Theme.Typography.mono)
+                    .foregroundColor(Theme.color(.textSecondary))
             } else {
                 Text("No Network")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
+                    .font(Theme.Typography.subheadline)
+                    .foregroundColor(Theme.color(.textSecondary))
             }
+            
+            Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Theme.color(.bgCard))
-        .overlay(
-            Divider()
-                .frame(maxWidth: .infinity, maxHeight: 1)
-                .background(Theme.color(.separator)),
-            alignment: .bottom
-        )
+        .padding()
+        .background(Theme.color(.bgCard).opacity(0.5))
+        .cornerRadius(Theme.radius(.md))
     }
     
     private var controls: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                // Left: buttons group - take flexible space
-                HStack(spacing: 8) {
-                    Button(action: { vm.detectNetwork() }) {
-                        Label("Detect", systemImage: "magnifyingglass")
-                            .frame(minWidth: 80)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    
-                    if vm.isScanning {
-                        Button(role: .destructive, action: { vm.cancelScan() }) {
-                            Label("Stop", systemImage: "stop.circle")
-                                .frame(minWidth: 80)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    } else {
-                        Button(action: { vm.startScan() }) {
-                            Label("Scan", systemImage: "dot.radiowaves.left.and.right")
-                                .frame(minWidth: 80)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .disabled(vm.networkInfo == nil)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                // Right: fixed area for spinner and scan progress
-                HStack(spacing: 8) {
-                    // Show numeric/phase progress when available, otherwise show a simple status.
-                    Text(vm.isScanning ? (vm.progressText.isEmpty ? "Scanning" : vm.progressText) : "Idle")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-
-                    Group {
-                        if vm.isScanning {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .secondary))
-                                .frame(width: 8, height: 8)
-                                .scaleEffect(0.8, anchor: .center)
-                                .controlSize(.small)
-                                .baselineOffset(-1)
-                        } else {
-                            Color.clear.frame(width: 8, height: 8)
-                        }
-                    }
-                    .padding(.leading, 4)
-                }
-                .frame(width: 220, alignment: .trailing)
+        HStack(spacing: 12) {
+            Button(action: { vm.detectNetwork() }) {
+                Label("Detect", systemImage: "magnifyingglass")
             }
-            .padding(.top, 4)
+            .buttonStyle(.borderedProminent)
+            .tint(Theme.color(.accentPrimary))
+            
+            if vm.isScanning {
+                Button(role: .destructive, action: { vm.cancelScan() }) {
+                    Label("Stop", systemImage: "stop.circle")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+            } else {
+                Button(action: { vm.startScan() }) {
+                    Label("Scan", systemImage: "dot.radiowaves.left.and.right")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Theme.color(.accentPrimary))
+                .disabled(vm.networkInfo == nil)
+            }
+            
+            Spacer()
+            
+            if vm.isScanning {
+                VStack(spacing: 4) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text(vm.progressText)
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.color(.textSecondary))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 200)
+                }
+            } else {
+                Text("\(vm.onlineCount) online")
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.color(.textTertiary))
+            }
+        }
+    }
+    
+    private var searchAndFilterControls: some View {
+        VStack(spacing: Theme.space(.md)) {
+            // Search bar
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(Theme.color(.textTertiary))
+                
+                TextField("Search devices, IPs, services...", text: $vm.filterOptions.searchText)
+                    .textFieldStyle(.plain)
+                    .foregroundColor(Theme.color(.textPrimary))
+                
+                if !vm.filterOptions.searchText.isEmpty {
+                    Button(action: { vm.filterOptions.searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(Theme.color(.textTertiary))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(Theme.space(.md))
+            .background(Theme.color(.bgElevated))
+            .cornerRadius(Theme.radius(.lg))
+            
+            // Filter controls
+            HStack(spacing: Theme.space(.md)) {
+                // Online filter
+                Toggle("Online Only", isOn: $vm.filterOptions.onlineOnly)
+                    .toggleStyle(.switch)
+                    .foregroundColor(Theme.color(.textSecondary))
+                
+                Spacer()
+                
+                // Device type filter
+                Menu {
+                    Button("All Types") {
+                        vm.filterOptions.deviceType = nil
+                    }
+                    ForEach(DeviceType.allCases, id: \.self) { type in
+                        Button(type.rawValue.capitalized) {
+                            vm.filterOptions.deviceType = type
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(vm.filterOptions.deviceType?.rawValue.capitalized ?? "All Types")
+                        Image(systemName: "chevron.down")
+                    }
+                    .foregroundColor(Theme.color(.textSecondary))
+                }
+                
+                // Discovery source filter
+                Menu {
+                    Button("All Sources") {
+                        vm.filterOptions.source = nil
+                    }
+                    ForEach([DiscoverySource.mdns, .arp, .ssdp, .nio, .ping], id: \.self) { source in
+                        Button(source.rawValue) {
+                            vm.filterOptions.source = source
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(vm.filterOptions.source?.rawValue ?? "All Sources")
+                        Image(systemName: "chevron.down")
+                    }
+                    .foregroundColor(Theme.color(.textSecondary))
+                }
+            }
         }
     }
     
     private var summaryFooter: some View {
-        HStack(spacing: 20) {
+        HStack {
             StatBlock(count: vm.deviceCount, title: "Devices")
+            Spacer()
             StatBlock(count: vm.onlineCount, title: "Online")
+            Spacer()
             StatBlock(count: vm.servicesCount, title: "Services")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    .background(Theme.color(.bgCard))
-        .frame(maxWidth: .infinity)
+        .padding(Theme.space(.xl))
+        .background(.ultraThinMaterial)
+        .cornerRadius(Theme.radius(.xl))
+        .padding(Theme.space(.md))
     }
     
     private var placeholderView: some View {
         ZStack {
-            // Keep the placeholder inside the column's safe area so it doesn't paint over the
-            // titlebar or other system chrome. This avoids the 'floating panel' visual.
-            Theme.color(.bgRoot)
+            Theme.color(.bgRoot).ignoresSafeArea()
             VStack(spacing: Theme.space(.md)) {
                 Image(systemName: "network")
                     .font(.system(size: 48))
@@ -301,7 +238,6 @@ public struct ContentView: View {
                     .multilineTextAlignment(.center)
             }
             .padding()
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
@@ -311,19 +247,19 @@ struct StatBlock: View {
     let title: String
     
     var body: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: Theme.space(.xs)) {
             Text("\(count)")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .font(Theme.Typography.title)
+                .foregroundColor(Theme.color(.textPrimary))
             Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(Theme.Typography.caption)
+                .foregroundColor(Theme.color(.textSecondary))
         }
-        .frame(minWidth: 60)
+        .frame(minWidth: 80)
     }
 }
 
 #Preview {
+    // Use an in-memory container for previews
     ContentView(inMemory: true)
 }

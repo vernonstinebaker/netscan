@@ -1,25 +1,23 @@
 import Foundation
-import SwiftData
 
-@Model
 final class PersistentDevice {
-    @Attribute(.unique) var id: String // MAC Address or IP Address
+    var id: String
     var ipAddress: String
     var macAddress: String?
-    var hostname: String?
     var vendor: String?
     var deviceType: String?
     var firstSeen: Date
     var lastSeen: Date
-    
-    init(id: String, ipAddress: String, macAddress: String? = nil, hostname: String? = nil, vendor: String? = nil, deviceType: String? = nil, firstSeen: Date, lastSeen: Date) {
+    var hostname: String?
+
+    init(id: String, ipAddress: String, macAddress: String?, vendor: String?, deviceType: String?, firstSeen: Date, lastSeen: Date, hostname: String? = nil) {
         self.id = id
         self.ipAddress = ipAddress
         self.macAddress = macAddress
-        self.hostname = hostname
         self.vendor = vendor
         self.deviceType = deviceType
         self.firstSeen = firstSeen
         self.lastSeen = lastSeen
+        self.hostname = hostname
     }
 }

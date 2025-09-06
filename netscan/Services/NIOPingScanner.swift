@@ -108,7 +108,7 @@ public actor NIOPingScanner {
     
     // Helper method for TCP port scanning
     private func tryTCPPortScan(host: String, ports: [UInt16], timeout: TimeInterval) async throws -> Device? {
-        var foundPorts = 0
+        var openPorts: [Port] = []
         var bestRtt: Double = Double.infinity
         
         let toCheck = ports.prefix(min(24, ports.count))
@@ -118,16 +118,19 @@ public actor NIOPingScanner {
             if let (isAlive, rtt) = await checkPort(host, port: port, timeout: timeout) {
                 print("[NIOPingScanner] Result for \(host):port\(port) -> alive=\(isAlive) rtt=\(rtt)")
                 if isAlive {
-                    foundPorts += 1
                     bestRtt = Swift.min(bestRtt, rtt)
-                    break // early exit on first sign of life
+                    // Create a Port object for the open port
+                    let serviceName = ServiceCatalog.entry(forPort: port)?.displayName ?? "Unknown"
+                    let description = ServiceCatalog.entry(forPort: port)?.description ?? "Unknown Service"
+                    openPorts.append(Port(number: Int(port), serviceName: serviceName, description: description, status: .open))
                 }
             }
         }
         
-        if foundPorts >= 1 {
+        if !openPorts.isEmpty {
             let finalRtt: Double? = (bestRtt == Double.infinity) ? nil : bestRtt
-            return await MainActor.run { Device(ip: host, rttMillis: finalRtt) }
+            let portsCopy = openPorts // Create a copy to avoid capturing the mutable variable
+            return await MainActor.run { Device(ip: host, rttMillis: finalRtt, openPorts: portsCopy) }
         } else {
             return nil
         }
