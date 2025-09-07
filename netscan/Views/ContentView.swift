@@ -5,8 +5,10 @@ import SwiftData
 public struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var vm: ScanViewModel
-    @State private var selectedDevice: Device?
-    
+    // Store the selected device's id instead of a copy of the Device so the detail view
+    // can resolve the latest device from the view model and remain up-to-date.
+    @State private var selectedDeviceID: String?
+
     public init(modelContext: ModelContext) {
         _vm = StateObject(wrappedValue: ScanViewModel(modelContext: modelContext))
     }
@@ -20,35 +22,33 @@ public struct ContentView: View {
     
     public var body: some View {
         NavigationSplitView {
-            ZStack(alignment: .bottom) {
-                Theme.color(.bgRoot).ignoresSafeArea()
+            VStack(spacing: 0) {
+                header
+                    .padding(.horizontal, Theme.space(.lg))
+                    .padding(.top, Theme.space(.lg))
                 
-                VStack(spacing: 0) {
-                    header
-                        .padding(.horizontal, Theme.space(.lg))
-                        .padding(.top, Theme.space(.lg))
-                    
-                    controls
-                        .padding(.horizontal, Theme.space(.lg))
-                        .padding(.vertical, Theme.space(.md))
+                controls
+                    .padding(.horizontal, Theme.space(.lg))
+                    .padding(.vertical, Theme.space(.md))
 
+                ZStack(alignment: .bottom) {
                     ScrollView {
                         LazyVStack(spacing: Theme.space(.md)) {
-                            ForEach(vm.devices) { device in
-                                Button(action: { selectedDevice = device }) {
+                            ForEach(vm.sortedDevices) { device in
+                                Button(action: { selectedDeviceID = device.id }) {
                                     DeviceRowView(device: device)
                                 }
                                 .buttonStyle(.plain)
-                                .background(selectedDevice?.id == device.id ? Theme.color(.accentPrimary).opacity(0.1) : .clear)
+                                .background(selectedDeviceID == device.id ? Theme.color(.accentPrimary).opacity(0.1) : .clear)
                                 .cornerRadius(Theme.radius(.xl))
                             }
                         }
                         .padding(.horizontal, Theme.space(.lg))
-                        .padding(.bottom, 100)
+                        .padding(.bottom, 120) // Add padding to prevent overlap with footer
                     }
+                    
+                    summaryFooter
                 }
-                
-                summaryFooter
             }
             .navigationTitle("Network Scanner")
             .onAppear {
@@ -56,8 +56,8 @@ public struct ContentView: View {
                 // vm.startScan() was removed to restore manual Scan button control
             }
         } detail: {
-            if let selectedDevice = selectedDevice {
-                DeviceDetailView(device: selectedDevice)
+            if let id = selectedDeviceID, let device = vm.devices.first(where: { $0.id == id }) {
+                DeviceDetailView(device: device)
             } else {
                 placeholderView
             }
@@ -107,13 +107,22 @@ public struct ContentView: View {
                     Label("Stop", systemImage: "stop.circle")
                 }
                 .buttonStyle(.bordered)
+                .tint(Theme.color(.accentPrimary))
             } else {
                 Button(action: { vm.startScan() }) {
                     Label("Scan", systemImage: "dot.radiowaves.left.and.right")
                 }
                 .buttonStyle(.bordered)
+                .tint(Theme.color(.accentPrimary))
                 .disabled(vm.networkInfo == nil)
             }
+            
+            Button(action: { vm.clearDevices() }) {
+                Label("Clear", systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
+            .tint(Theme.color(.accentPrimary))
+            .disabled(vm.devices.isEmpty)
             
             Spacer()
             

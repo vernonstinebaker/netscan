@@ -13,6 +13,16 @@ final class ScanViewModel: ObservableObject {
     @Published var onlineCount: Int = 0
     @Published var servicesCount: Int = 0
 
+    // Computed property for sorted devices by IP address
+    var sortedDevices: [Device] {
+        devices.sorted { a, b in
+            guard let aa = IPv4.parse(a.ipAddress)?.raw, let bb = IPv4.parse(b.ipAddress)?.raw else {
+                return a.ipAddress < b.ipAddress
+            }
+            return aa < bb
+        }
+    }
+
     private let modelContext: ModelContext?
     private let arpParser = ARPTableParser()
     private let classifier = DeviceClassifier()
@@ -72,7 +82,6 @@ final class ScanViewModel: ObservableObject {
                 if !ssdpResults.ips.isEmpty {
                     for ip in ssdpResults.ips {
                         try Task.checkCancellation()
-                        // SSDP should not claim initial discovery (not in mDNS/ARP/Ping list)
                         await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true)
                     }
                 }
@@ -81,7 +90,6 @@ final class ScanViewModel: ObservableObject {
                 if !wsResults.ips.isEmpty {
                     for ip in wsResults.ips {
                         try Task.checkCancellation()
-                        // WS-Discovery should not claim initial discovery
                         await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true)
                     }
                 }
@@ -101,8 +109,6 @@ final class ScanViewModel: ObservableObject {
 
                 let totalHosts = IPv4.hosts(inNetwork: IPv4.network(ip: IPv4.parse(info.ip)!, mask: IPv4.parse(info.netmask)!), mask: IPv4.parse(info.netmask)!).count
 
-                // Skip redundant pinging - devices loaded from KV store are already being pinged in parallel
-
                 let alreadyOnlineIPs = Set(devices.filter { $0.isOnline }.map { $0.ipAddress })
                 progressText = "Discovering new devices..."
 
@@ -117,7 +123,6 @@ final class ScanViewModel: ObservableObject {
                 }
                 for device in devices {
                     if !alreadyOnlineIPs.contains(device.ipAddress) {
-                        // NIO scan should not claim discovery; leave unknown so later mDNS/ARP/Ping can set it.
                         await self.updateDevice(ipAddress: device.ipAddress, arpMap: arpMap, isOnline: true, openPorts: device.openPorts.map { $0.number })
                     }
                 }
@@ -189,7 +194,6 @@ final class ScanViewModel: ObservableObject {
                 guard let self = self else { return }
                 if let (isAlive, _) = await SimplePing.ping(host: d.ipAddress, timeout: 1.0), isAlive {
                     print("[DEBUG] Ping success for \(d.ipAddress)")
-                    // Do NOT set discoverySource to .ping here; we are only confirming liveness on load.
                     await self.updateDevice(ipAddress: d.ipAddress, arpMap: [:], isOnline: true)
                     await MainActor.run { self.startPortScanIfNeeded(for: d.ipAddress) }
                 } else {
@@ -459,5 +463,14 @@ final class ScanViewModel: ObservableObject {
         for (_, task) in portScanTasks { task.cancel() }
         portScanTasks.removeAll()
         portScanInProgress.removeAll()
+    }
+
+    func clearDevices() {
+        devices.removeAll()
+        portScanInProgress.removeAll()
+        portScanCompleted.removeAll()
+        portScanTasks.removeAll()
+        updateCounts()
+        objectWillChange.send()
     }
 }

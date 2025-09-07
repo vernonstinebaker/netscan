@@ -11,6 +11,7 @@ public enum ServiceMapper {
             case "smb": return .smb
             case "dhcp": return .dhcp
             case "cast": return .chromecast
+            case "ftp": return .ftp
             default: return .unknown
             }
         }
@@ -29,4 +30,3 @@ public enum ServiceMapper {
         return .unknown
     }
 }
-

@@ -11,12 +11,16 @@ struct ServiceTag: View {
                 .font(.system(size: 11))
             Text(displayLabel(s.label))
                 .font(.system(size: 12, weight: .semibold))
+                // allow the text to use its intrinsic width so the pill expands instead of truncating
+                .fixedSize(horizontal: true, vertical: false)
+                .layoutPriority(1)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(s.color.opacity(0.15))
         .foregroundColor(s.color)
         .cornerRadius(6)
+        .accessibilityLabel(displayLabel(s.label))
     }
 
     private func displayLabel(_ base: String) -> String {

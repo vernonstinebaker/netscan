@@ -91,7 +91,24 @@ public struct DeviceRowView: View {
     
         private var clickableServiceTags: some View {
             HStack(spacing: Theme.space(.sm)) {
-                ForEach(device.displayServices.filter { $0.type != .unknown }) { svc in
+                // Use uniqueServices for master list - shows one pill per service type regardless of ports
+                let uniqueServices = device.uniqueServices.filter { $0.type != .unknown }
+                
+                // Debug: Compare what master list sees vs detail view
+                //                let _ = print("=== DEBUG DEVICE ROW VIEW ===")
+                //                let _ = print("Device: \(device.ipAddress)")
+                //                let _ = print("Raw services count: \(device.services.count)")
+                //                let _ = device.services.forEach { svc in
+                //                    print("  Raw service: \(svc.type.rawValue) port:\(svc.port ?? -1) name:\(svc.name)")
+                //                }
+                //                let _ = print("UniqueServices count: \(device.uniqueServices.count)")
+                //                let _ = device.uniqueServices.forEach { svc in
+                //                    print("  Unique service: \(svc.type.rawValue) port:\(svc.port ?? -1) name:\(svc.name)")
+                //                }
+                //                let _ = print("=== END DEBUG ROW ===")
+                // Debug logging removed; production view should use uniqueServices for consolidated tags
+                 
+                ForEach(uniqueServices) { svc in
                     if svc.type == .http || svc.type == .https {
                         Button(action: {
                             var comps = URLComponents()

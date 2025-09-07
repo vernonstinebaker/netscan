@@ -118,59 +118,40 @@ public struct DeviceDetailView: View {
     }
 
     private var activeServicesSection: some View {
-        // build port-derived services (only map well-known ports)
-        let portDerived: [NetworkService] = device.openPorts.compactMap { port in
-            switch port.number {
-            case 80: return NetworkService(name: port.serviceName, type: .http)
-            case 443: return NetworkService(name: port.serviceName, type: .https)
-            case 22: return NetworkService(name: port.serviceName, type: .ssh)
-            case 1900: return NetworkService(name: port.serviceName, type: .ssdp)
-            case 5353: return NetworkService(name: port.serviceName, type: .mdns)
-            default: return nil
-            }
-        }
+        // Use displayServices for detailed view - shows all individual services with specific ports
+        let allServices = device.displayServices.filter { $0.type != .unknown }
 
-    // Combine uniqueServices (from discovery) with port-derived services, deduping by type
-    var map: [ServiceType: NetworkService] = [:]
-    for svc in device.displayServices + portDerived {
-            if let existing = map[svc.type] {
-                // prefer the one with longer name
-                if svc.name.count > existing.name.count {
-                    map[svc.type] = svc
-                }
-            } else {
-                map[svc.type] = svc
-            }
-        }
-        let combined = Array(map.values).filter { $0.type != .unknown }
+        // No file-based debug logging; instead show an on-screen summary below so it's visible to the user.
+ 
+         return VStack(alignment: .leading, spacing: Theme.space(.lg)) {
+             Text("Active Services")
+                 .font(Theme.Typography.headline)
+                 .foregroundColor(Theme.color(.textPrimary))
 
-        return VStack(alignment: .leading, spacing: Theme.space(.lg)) {
-            Text("Active Services")
-                .font(Theme.Typography.headline)
-                .foregroundColor(Theme.color(.textPrimary))
-
-            VStack(alignment: .leading) {
-                if #available(macOS 13.0, *) {
-                    FlowLayout(alignment: .leading, spacing: Theme.space(.sm)) {
-                        ForEach(combined) { svc in
-                            serviceTagButton(for: svc)
-                        }
-                    }
-                } else {
-                    ScrollView(.horizontal) {
-                        HStack {
-                            ForEach(combined) { svc in
-                                serviceTagButton(for: svc)
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(Theme.space(.lg))
-            .background(Theme.color(.bgCard))
-            .cornerRadius(Theme.radius(.lg))
-        }
-    }
+             VStack(alignment: .leading) {
+                 if allServices.isEmpty {
+                     Text("No services detected")
+                         .font(Theme.Typography.body)
+                         .foregroundColor(Theme.color(.textSecondary))
+                         .padding(Theme.space(.lg))
+                 } else {
+                     // Use a horizontal scroll view with an HStack so each pill can size to its intrinsic width
+                     ScrollView(.horizontal, showsIndicators: false) {
+                         HStack(spacing: Theme.space(.sm)) {
+                             ForEach(allServices) { svc in
+                                 serviceTagButton(for: svc)
+                             }
+                         }
+                         .padding(.vertical, Theme.space(.xs))
+                     }
+                     // Only show pills in Active Services (no plain-text summary)
+                  }
+              }
+             .padding(Theme.space(.lg))
+             .background(Theme.color(.bgCard))
+             .cornerRadius(Theme.radius(.lg))
+         }
+     }
 
     @ViewBuilder
     private func serviceTagButton(for svc: NetworkService) -> some View {
@@ -289,51 +270,28 @@ private struct PortRow: View {
     }
 }
 
-// A simple horizontal flow layout for tags
-@available(macOS 13.0, *)
-struct FlowLayout: Layout {
-    var alignment: Alignment = .center
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
-        var totalHeight: CGFloat = 0
-        var totalWidth: CGFloat = 0
-        var currentRowWidth: CGFloat = 0
-        var currentRowHeight: CGFloat = 0
-
-        for size in sizes {
-            if currentRowWidth + spacing + size.width > proposal.width ?? .infinity {
-                totalHeight += currentRowHeight
-                totalWidth = max(totalWidth, currentRowWidth)
-                currentRowWidth = size.width
-                currentRowHeight = size.height
-            } else {
-                currentRowWidth += spacing + size.width
-                currentRowHeight = max(currentRowHeight, size.height)
+extension Array {
+    /// Splits the array into chunks of the specified size.
+    /// - Parameter size: The size of each chunk.
+    /// - Returns: An array of arrays, where each sub-array is a chunk of the original array.
+    func chunked(into size: Int) -> [[Element]] {
+        var chunks: [[Element]] = []
+        var currentChunk: [Element] = []
+        
+        for element in self {
+            currentChunk.append(element)
+            if currentChunk.count == size {
+                chunks.append(currentChunk)
+                currentChunk = []
             }
         }
-        totalHeight += currentRowHeight
-        totalWidth = max(totalWidth, currentRowWidth)
-        return CGSize(width: totalWidth, height: totalHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
-        var x = bounds.minX
-        var y = bounds.minY
-        var currentRowHeight: CGFloat = 0
-
-        for index in subviews.indices {
-            if x + sizes[index].width > bounds.width {
-                y += currentRowHeight + spacing
-                x = bounds.minX
-                currentRowHeight = 0
-            }
-            subviews[index].place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: .unspecified)
-            x += sizes[index].width + spacing
-            currentRowHeight = max(currentRowHeight, sizes[index].height)
+        
+        // Append any remaining elements as a final chunk
+        if !currentChunk.isEmpty {
+            chunks.append(currentChunk)
         }
+        
+        return chunks
     }
 }
 

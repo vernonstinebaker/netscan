@@ -42,4 +42,15 @@ public enum DeviceKVStore {
             store.synchronize()
         }
     }
+
+    public static func clearAll() {
+        let store = NSUbiquitousKeyValueStore.default
+        let allKeys = store.dictionaryRepresentation.keys
+        for key in allKeys {
+            if key.hasPrefix(DeviceKVStore.rootPrefix) {
+                store.removeObject(forKey: key)
+            }
+        }
+        store.synchronize()
+    }
 }

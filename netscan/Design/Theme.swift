@@ -72,6 +72,7 @@ public enum Theme {
     case .chromecast: return ServiceStyle(color: Theme.color(.accentSecondary), icon: "tv.badge.wifi", label: "Cast")
     case .ssdp: return ServiceStyle(color: Theme.color(.accentSecondary), icon: "antenna.radiowaves.left.and.right", label: "SSDP")
     case .mdns: return ServiceStyle(color: Theme.color(.accentSecondary), icon: "dot.radiowaves.left.and.right", label: "mDNS")
+    case .ftp: return ServiceStyle(color: Theme.color(.accentSecondary), icon: "tray.and.arrow.down", label: "FTP")
     case .unknown: return ServiceStyle(color: Theme.color(.accentMuted), icon: "questionmark", label: "Unknown")
         }
     }

@@ -169,6 +169,7 @@ public enum ServiceType: String, CaseIterable, Sendable, Codable {
     case chromecast = "Chromecast"
     case ssdp = "SSDP"
     case mdns = "mDNS"
+    case ftp = "FTP"
     case unknown = "Unknown"
 }
 

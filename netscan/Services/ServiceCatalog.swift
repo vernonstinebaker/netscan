@@ -81,6 +81,15 @@ public enum ServiceCatalog: Sendable {
             category: .media,
             icon: "tv.badge.wifi",
             color: .accentPrimary
+        ),
+        ServiceCatalogEntry(
+            key: "ftp",
+            displayName: "FTP",
+            description: "File Transfer Protocol",
+            defaultPorts: [21],
+            category: .fileShare,
+            icon: "tray.and.arrow.down",
+            color: .accentPrimary
         )
     ]
     

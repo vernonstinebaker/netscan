@@ -19,6 +19,7 @@ struct netscanApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(modelContext: sharedModelContainer.mainContext)
+                .preferredColorScheme(.dark)
         }
         .modelContainer(sharedModelContainer)
     }
