@@ -1,5 +1,4 @@
 import Foundation
-import Network
 
 public actor NetworkScanner {
     public struct Progress: Sendable { public let scanned: Int; public let total: Int }
@@ -30,13 +29,11 @@ public actor NetworkScanner {
     }
 
     public func scanSubnet(info: NetworkInfo, concurrency: Int = 64, onProgress: ((Progress) -> Void)? = nil) async -> [Device] {
-        let parsed = await MainActor.run { (IPv4.parse(info.ip), IPv4.parse(info.netmask)) }
-        guard let ip = parsed.0, let mask = parsed.1 else {
+        guard let parsed = await NetworkInterface.parseNetworkInfo(info) else {
             print("[NetworkScanner] Failed to parse IP or netmask: ip=\(info.ip) mask=\(info.netmask)")
             return []
         }
-        let network = await MainActor.run { IPv4.network(ip: ip, mask: mask) }
-        let hosts = await MainActor.run { IPv4.hosts(inNetwork: network, mask: mask) }
+        let (_, mask, network, hosts) = parsed
         let total = hosts.count
         let header: String = await MainActor.run {
             "[NetworkScanner] Starting scan: network=\(IPv4.format(network)) mask=/\(IPv4.netmaskPrefix(mask)) totalHosts=\(total) concurrency=\(concurrency)"

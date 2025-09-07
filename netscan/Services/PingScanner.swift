@@ -42,13 +42,10 @@ public actor PingScanner {
     }
     
     public func scanSubnet(info: NetworkInfo, concurrency: Int = 32, skipIPs: Set<String> = [], onProgress: ((Progress) -> Void)? = nil, onDeviceFound: ((Device) -> Void)? = nil) async throws -> [Device] {
-        let parsed = await MainActor.run { (IPv4.parse(info.ip), IPv4.parse(info.netmask)) }
-        guard let ip = parsed.0, let mask = parsed.1 else {
+        guard let parsed = await NetworkInterface.parseNetworkInfo(info) else {
             return []
         }
-        
-        let network = await MainActor.run { IPv4.network(ip: ip, mask: mask) }
-        let hosts = await MainActor.run { IPv4.hosts(inNetwork: network, mask: mask) }
+        let (_, _, _, hosts) = parsed
         let total = hosts.count
         var scanned = 0
         

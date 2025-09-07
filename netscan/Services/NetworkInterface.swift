@@ -58,4 +58,15 @@ public enum NetworkInterface {
 
         return nil
     }
+
+    /// Parses network info and returns the parsed IP, mask, network, and hosts
+    public static func parseNetworkInfo(_ info: NetworkInfo) async -> (ip: IPv4.Address, mask: IPv4.Address, network: IPv4.Address, hosts: [IPv4.Address])? {
+        let parsed = await MainActor.run { (IPv4.parse(info.ip), IPv4.parse(info.netmask)) }
+        guard let ip = parsed.0, let mask = parsed.1 else {
+            return nil
+        }
+        let network = await MainActor.run { IPv4.network(ip: ip, mask: mask) }
+        let hosts = await MainActor.run { IPv4.hosts(inNetwork: network, mask: mask) }
+        return (ip, mask, network, hosts)
+    }
 }

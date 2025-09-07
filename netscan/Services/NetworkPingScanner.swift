@@ -85,10 +85,8 @@ public actor NetworkPingScanner {
         onDeviceFound: @escaping (Device) -> Void
     ) async -> [Device] {
         // Compute IP/mask/network/hosts on the main actor
-        let parsed = await MainActor.run { (IPv4.parse(info.ip), IPv4.parse(info.netmask)) }
-        guard let ip = parsed.0, let mask = parsed.1 else { return [] }
-        let network = await MainActor.run { IPv4.network(ip: ip, mask: mask) }
-        let hosts = await MainActor.run { IPv4.hosts(inNetwork: network, mask: mask) }
+        guard let parsed = await NetworkInterface.parseNetworkInfo(info) else { return [] }
+        let (_, _, _, hosts) = parsed
         let totalHosts = hosts.count
 
         var devices: [Device] = []
