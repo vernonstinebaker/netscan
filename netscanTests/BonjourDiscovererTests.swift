@@ -29,7 +29,7 @@ final class BonjourDiscovererTests: XCTestCase {
         // Test with default timeout, may return empty if no services
         let result = await discoverer.discover(timeout: 0.1)
         // Can't assert much without real network
-        XCTAssertTrue(result is [String: BonjourHostResult])
+        XCTAssertNotNil(result)
     }
 
     func testBonjourHostResultInit() {

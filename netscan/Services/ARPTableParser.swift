@@ -52,7 +52,7 @@ public actor ARPTableParser {
     }
     
     /// Parse the output of the `arp -a` command
-    private func parseARPOutput(_ output: String) -> [ARPEntry] {
+    internal func parseARPOutput(_ output: String) -> [ARPEntry] {
         var entries: [ARPEntry] = []
         
         let lines = output.split(separator: "\n")
@@ -96,7 +96,7 @@ public actor ARPTableParser {
     }
     
     /// Validate MAC address format
-    private func isValidMACAddress(_ mac: String) -> Bool {
+    internal func isValidMACAddress(_ mac: String) -> Bool {
         let macRegex = "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
         let predicate = NSPredicate(format: "SELF MATCHES %@", macRegex)
         return predicate.evaluate(with: mac)
