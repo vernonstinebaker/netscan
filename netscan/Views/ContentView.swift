@@ -4,6 +4,7 @@ import SwiftData
 @available(macOS 14.0, *)
 public struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var vm: ScanViewModel
     // Store the selected device's id instead of a copy of the Device so the detail view
     // can resolve the latest device from the view model and remain up-to-date.
@@ -16,8 +17,12 @@ public struct ContentView: View {
     // This initializer is specifically for SwiftUI Previews
     init(inMemory: Bool = false) {
         let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
-        let container = try! ModelContainer(for: PersistentDevice.self, configurations: config)
-        _vm = StateObject(wrappedValue: ScanViewModel(modelContext: container.mainContext))
+        do {
+            let container = try ModelContainer(for: PersistentDevice.self, configurations: config)
+            _vm = StateObject(wrappedValue: ScanViewModel(modelContext: container.mainContext))
+        } catch {
+            fatalError("Failed to create ModelContainer for previews: \(error)")
+        }
     }
     
     public var body: some View {
@@ -63,6 +68,11 @@ public struct ContentView: View {
             }
         }
         .animation(.default, value: vm.devices)
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .background {
+                Task { await vm.persistToKVS() }
+            }
+        }
     }
     
     private var header: some View {
@@ -132,6 +142,14 @@ public struct ContentView: View {
                     .opacity(vm.isScanning ? 1.0 : 0.0)
             }
             .frame(width: 24, height: 24)
+
+            if vm.isScanning && !vm.progressText.isEmpty {
+                Text(vm.progressText)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(Theme.color(.textSecondary))
+                    .lineLimit(1)
+                    .frame(maxWidth: 200)
+            }
         }
     }
     

@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct netscanApp: App {
+struct netscan: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             PersistentDevice.self,

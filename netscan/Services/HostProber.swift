@@ -70,10 +70,19 @@ public enum HostProber {
             return .dead
         }
 
-        if soErr == 0 || soErr == ECONNREFUSED {
+        if soErr == 0 {
+            // Connection successful - port is open
             let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000.0
             return .alive(elapsedMs)
+        } else if soErr == ECONNREFUSED {
+            // Connection refused - port is closed but host is responding
+            let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000.0
+            return .alive(elapsedMs)
+        } else if soErr == EHOSTUNREACH || soErr == ENETUNREACH || soErr == ETIMEDOUT {
+            // Host unreachable, network unreachable, or timeout - host is definitely dead
+            return .dead
         } else {
+            // Other errors - treat as dead to be safe
             return .dead
         }
     }

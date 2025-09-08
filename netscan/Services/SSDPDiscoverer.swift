@@ -10,11 +10,10 @@ public actor SSDPDiscoverer {
     public func discover(timeout: TimeInterval = 7.0) async -> Result {
         let groupHost = "239.255.255.250"
         let port: NWEndpoint.Port = 1900
-    let params = NWParameters.udp
-    params.allowLocalEndpointReuse = true
-    // Do not strictly require .wifi -- allow the system to choose the best interface so
-    // discovery works on wired and virtual interfaces as well.
-    // params.requiredInterfaceType = .wifi
+        let params = NWParameters.udp
+        params.allowLocalEndpointReuse = true
+        // Try to use any available interface (WiFi preferred but not forced)
+        // params.requiredInterfaceType = .wifi
 
         let connection = NWConnection(host: .init(groupHost), port: port, using: params)
         var seenIPs = Set<String>()
@@ -29,25 +28,28 @@ public actor SSDPDiscoverer {
                         print("SSDPDiscoverer: Connection ready - interfaces: [\(ifNames)] path: \(path)")
                     }
                     print("SSDPDiscoverer: Connection debug: \(connection.debugDescription)")
-                var lines: [String] = []
-                lines.append("M-SEARCH * HTTP/1.1")
-                lines.append("HOST: 239.255.255.250:1900")
-                lines.append("MAN: \"ssdp:discover\"")
-                lines.append("MX: 3")
-                lines.append("ST: ssdp:all")
-                lines.append("USER-AGENT: macOS NetScan")
-                let payload = (lines.joined(separator: "\r\n") + "\r\n\r\n").data(using: .utf8)!
-                connection.send(content: payload, completion: .contentProcessed { error in
-                    if let err = error {
-                        print("SSDPDiscoverer: send completion error: \(err)")
-                    } else {
-                        print("SSDPDiscoverer: Sent M-SEARCH (MX=3)")
-                        if let path = connection.currentPath {
-                            print("SSDPDiscoverer: currentPath after send: \(path)")
+
+                    // Send multiple M-SEARCH requests with different service types
+                    let searchRequests = [
+                        ("ssdp:all", "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 3\r\nST: ssdp:all\r\nUSER-AGENT: iOS NetScan\r\n\r\n"),
+                        ("upnp:rootdevice", "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 3\r\nST: upnp:rootdevice\r\nUSER-AGENT: iOS NetScan\r\n\r\n"),
+                        ("urn:schemas-upnp-org:device:InternetGatewayDevice:1", "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 3\r\nST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\nUSER-AGENT: iOS NetScan\r\n\r\n")
+                    ]
+
+                    for (serviceType, payload) in searchRequests {
+                        guard let data = payload.data(using: .utf8) else {
+                            print("SSDPDiscoverer: Failed to encode payload for \(serviceType) as UTF-8")
+                            continue
                         }
+                        connection.send(content: data, completion: .contentProcessed { error in
+                            if let err = error {
+                                print("SSDPDiscoverer: send completion error for \(serviceType): \(err)")
+                            } else {
+                                print("SSDPDiscoverer: Sent M-SEARCH for \(serviceType)")
+                            }
+                        })
                     }
-                })
-            }
+                }
         }
 
         func parseResponderIP(from data: Data) -> String? {
@@ -96,6 +98,7 @@ public actor SSDPDiscoverer {
         }
 
     debugLog("SSDPDiscoverer: Starting SSDP discovery (timeout: \(timeout)s)...")
+    debugLog("SSDPDiscoverer: Using multicast group: \(groupHost):\(port)")
     connection.start(queue: queue)
     receiveLoop()
 

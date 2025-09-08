@@ -119,11 +119,10 @@ This document outlines the step-by-step plan to add the additional features depi
 
 ### 🎯 **Immediate Next Priorities:**
 
-1.  **Persistence** - Persist device information between scans; add history/compare.
-2.  **Service Insight** - Version detection and lightweight fingerprinting for common services.
-3.  **Classification** - Deeper OS/capability detection with confidence scoring.
-4.  **Performance** - Advanced tuning (dynamic concurrency, large subnet strategies).
-5.  **Advanced UX** - Vendor filter, custom grouping, export/reporting.
+1.  **Service Insight** - Version detection and lightweight fingerprinting for common services.
+2.  **Classification** - Deeper OS/capability detection with confidence scoring.
+3.  **Performance** - Advanced tuning (dynamic concurrency, large subnet strategies).
+4.  **Advanced UX** - Vendor filter, custom grouping, export/reporting.
 
 ---
 

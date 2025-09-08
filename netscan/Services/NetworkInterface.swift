@@ -18,18 +18,19 @@ public enum NetworkInterface {
             return false
         }
 
-        var candidates = [NetworkInfo]()
+        var candidates = [(NetworkInfo, String)]() // (info, ifname)
         var cursor: UnsafeMutablePointer<ifaddrs>? = first
         while let ifa = cursor?.pointee {
             defer { cursor = ifa.ifa_next }
             let flags = Int32(ifa.ifa_flags)
             let isUp = (flags & IFF_UP) != 0
             let isLoopback = (flags & IFF_LOOPBACK) != 0
-            guard isUp && !isLoopback, let addr = ifa.ifa_addr, addr.pointee.sa_family == sa_family_t(AF_INET) else { continue }
+            guard let addr = ifa.ifa_addr, addr.pointee.sa_family == sa_family_t(AF_INET) else { continue }
+            guard let netmask = ifa.ifa_netmask else { continue }
 
             let ifname = String(cString: ifa.ifa_name)
             let addr_in = UnsafeRawPointer(ifa.ifa_addr).assumingMemoryBound(to: sockaddr_in.self).pointee
-            let mask_in = UnsafeRawPointer(ifa.ifa_netmask).assumingMemoryBound(to: sockaddr_in.self).pointee
+            let mask_in = UnsafeRawPointer(netmask).assumingMemoryBound(to: sockaddr_in.self).pointee
 
             var ipBuf = [CChar](repeating: 0, count: Int(NI_MAXHOST))
             var maskBuf = [CChar](repeating: 0, count: Int(NI_MAXHOST))
@@ -38,22 +39,45 @@ public enum NetworkInterface {
             let ipStr = String(cString: ipBuf)
             let maskStr = String(cString: maskBuf)
             guard let ip = IPv4.parse(ipStr), let mask = IPv4.parse(maskStr) else { continue }
+
+            print("[NetworkInterface] Interface \(ifname): \(ipStr)/\(IPv4.netmaskPrefix(mask)) up=\(isUp) loopback=\(isLoopback)")
+
+            if !isUp || isLoopback { continue }
+
+            // Skip cellular interfaces
+            if ifname.hasPrefix("pdp") || ifname.hasPrefix("ipsec") {
+                print("[NetworkInterface] Skipping cellular interface \(ifname)")
+                continue
+            }
+
             let net = IPv4.network(ip: ip, mask: mask)
             let bcast = IPv4.broadcast(ip: ip, mask: mask)
             let prefix = IPv4.netmaskPrefix(mask)
-            
+
             let info = NetworkInfo(ip: ipStr, netmask: maskStr, cidr: prefix, network: IPv4.format(net), broadcast: IPv4.format(bcast))
-            candidates.append(info)
-            
+            candidates.append((info, ifname))
+
             if isRFC1918(ip) {
-                print("[NetworkInterface] Found RFC1918 interface \(ifname): \(ipStr). Using it.")
-                return info
+                print("[NetworkInterface] Found RFC1918 interface \(ifname): \(ipStr).")
             }
         }
-        
+
+        // Prefer WiFi interfaces (en*) over cellular (pdp*, ipsec*)
+        let wifiCandidates = candidates.filter { $0.1.hasPrefix("en") && (IPv4.parse($0.0.ip).map(isRFC1918) ?? false) }
+        if let wifi = wifiCandidates.first {
+            print("[NetworkInterface] Using WiFi interface \(wifi.1): \(wifi.0.ip).")
+            return wifi.0
+        }
+
+        let rfc1918Candidates = candidates.filter { IPv4.parse($0.0.ip).map(isRFC1918) ?? false }
+        if let best = rfc1918Candidates.first {
+            print("[NetworkInterface] Using RFC1918 interface \(best.1): \(best.0.ip).")
+            return best.0
+        }
+
         if let best = candidates.first {
-            print("[NetworkInterface] No RFC1918 interface found. Using the first available one.")
-            return best
+            print("[NetworkInterface] No RFC1918 interface found. Using the first available one \(best.1): \(best.0.ip).")
+            return best.0
         }
 
         return nil

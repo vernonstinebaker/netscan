@@ -42,14 +42,11 @@ public actor NetworkPingScanner {
                     let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - startTime) / 1_000_000.0
                     continuation.resume(returning: (true, elapsedMs))
 
-                case .failed(let error):
-                    connection.cancel()
-                    if case .posix(let code) = error, code == .ECONNREFUSED {
-                        let elapsedMs = Double(DispatchTime.now().uptimeNanoseconds - startTime) / 1_000_000.0
-                        continuation.resume(returning: (true, elapsedMs))
-                    } else {
-                        continuation.resume(returning: nil)
-                    }
+                 case .failed(_):
+                     connection.cancel()
+                     // For ping purposes, any connection failure means the host is not responding
+                     // ECONNREFUSED means the host exists but the port is closed - this is not a successful ping
+                     continuation.resume(returning: nil)
 
                 case .cancelled:
                     continuation.resume(returning: nil)

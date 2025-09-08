@@ -6,49 +6,41 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		3D12E0F52E69270E00EF65C0 /* NIO in Frameworks */ = {isa = PBXBuildFile; productRef = 3D12E0F42E69270E00EF65C0 /* NIO */; };
-		3D12E0F72E69270E00EF65C0 /* NIOConcurrencyHelpers in Frameworks */ = {isa = PBXBuildFile; productRef = 3D12E0F62E69270E00EF65C0 /* NIOConcurrencyHelpers */; };
-		3D12E0F92E69270E00EF65C0 /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = 3D12E0F82E69270E00EF65C0 /* NIOCore */; };
-		3D12E0FB2E69270E00EF65C0 /* NIOEmbedded in Frameworks */ = {isa = PBXBuildFile; productRef = 3D12E0FA2E69270E00EF65C0 /* NIOEmbedded */; };
-		3D12E0FD2E69270E00EF65C0 /* NIOFoundationCompat in Frameworks */ = {isa = PBXBuildFile; productRef = 3D12E0FC2E69270E00EF65C0 /* NIOFoundationCompat */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
-		3D12E08D2E6920C500EF65C0 /* PBXContainerItemProxy */ = {
+		3DC5204C2E6EF6F000B1DDD3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 3D12E0772E6920C400EF65C0 /* Project object */;
+			containerPortal = 3DC520362E6EF6F000B1DDD3 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 3D12E07E2E6920C400EF65C0;
+			remoteGlobalIDString = 3DC5203D2E6EF6F000B1DDD3;
 			remoteInfo = netscan;
 		};
-		3D12E0972E6920C500EF65C0 /* PBXContainerItemProxy */ = {
+		3DC520562E6EF6F000B1DDD3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 3D12E0772E6920C400EF65C0 /* Project object */;
+			containerPortal = 3DC520362E6EF6F000B1DDD3 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 3D12E07E2E6920C400EF65C0;
+			remoteGlobalIDString = 3DC5203D2E6EF6F000B1DDD3;
 			remoteInfo = netscan;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		3D12E07F2E6920C400EF65C0 /* netscan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = netscan.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		3D12E08C2E6920C500EF65C0 /* netscanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = netscanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		3D12E0962E6920C500EF65C0 /* netscanUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = netscanUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3DC5203E2E6EF6F000B1DDD3 /* netscan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = netscan.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3DC5204B2E6EF6F000B1DDD3 /* netscanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = netscanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3DC520552E6EF6F000B1DDD3 /* netscanUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = netscanUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		3D12E0812E6920C400EF65C0 /* netscan */ = {
+		3DC520402E6EF6F000B1DDD3 /* netscan */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = netscan;
 			sourceTree = "<group>";
 		};
-		3D12E08F2E6920C500EF65C0 /* netscanTests */ = {
+		3DC5204E2E6EF6F000B1DDD3 /* netscanTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = netscanTests;
 			sourceTree = "<group>";
 		};
-		3D12E0992E6920C500EF65C0 /* netscanUITests */ = {
+		3DC520582E6EF6F000B1DDD3 /* netscanUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = netscanUITests;
 			sourceTree = "<group>";
@@ -56,26 +48,21 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		3D12E07C2E6920C400EF65C0 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				3D12E0F92E69270E00EF65C0 /* NIOCore in Frameworks */,
-				3D12E0FD2E69270E00EF65C0 /* NIOFoundationCompat in Frameworks */,
-				3D12E0F52E69270E00EF65C0 /* NIO in Frameworks */,
-				3D12E0F72E69270E00EF65C0 /* NIOConcurrencyHelpers in Frameworks */,
-				3D12E0FB2E69270E00EF65C0 /* NIOEmbedded in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3D12E0892E6920C500EF65C0 /* Frameworks */ = {
+		3DC5203B2E6EF6F000B1DDD3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3D12E0932E6920C500EF65C0 /* Frameworks */ = {
+		3DC520482E6EF6F000B1DDD3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3DC520522E6EF6F000B1DDD3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -85,22 +72,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		3D12E0762E6920C400EF65C0 = {
+		3DC520352E6EF6F000B1DDD3 = {
 			isa = PBXGroup;
 			children = (
-				3D12E0812E6920C400EF65C0 /* netscan */,
-				3D12E08F2E6920C500EF65C0 /* netscanTests */,
-				3D12E0992E6920C500EF65C0 /* netscanUITests */,
-				3D12E0802E6920C400EF65C0 /* Products */,
+				3DC520402E6EF6F000B1DDD3 /* netscan */,
+				3DC5204E2E6EF6F000B1DDD3 /* netscanTests */,
+				3DC520582E6EF6F000B1DDD3 /* netscanUITests */,
+				3DC5203F2E6EF6F000B1DDD3 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		3D12E0802E6920C400EF65C0 /* Products */ = {
+		3DC5203F2E6EF6F000B1DDD3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				3D12E07F2E6920C400EF65C0 /* netscan.app */,
-				3D12E08C2E6920C500EF65C0 /* netscanTests.xctest */,
-				3D12E0962E6920C500EF65C0 /* netscanUITests.xctest */,
+				3DC5203E2E6EF6F000B1DDD3 /* netscan.app */,
+				3DC5204B2E6EF6F000B1DDD3 /* netscanTests.xctest */,
+				3DC520552E6EF6F000B1DDD3 /* netscanUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -108,142 +95,134 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3D12E07E2E6920C400EF65C0 /* netscan */ = {
+		3DC5203D2E6EF6F000B1DDD3 /* netscan */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3D12E0A02E6920C500EF65C0 /* Build configuration list for PBXNativeTarget "netscan" */;
+			buildConfigurationList = 3DC5205F2E6EF6F000B1DDD3 /* Build configuration list for PBXNativeTarget "netscan" */;
 			buildPhases = (
-				3D12E07B2E6920C400EF65C0 /* Sources */,
-				3D12E07C2E6920C400EF65C0 /* Frameworks */,
-				3D12E07D2E6920C400EF65C0 /* Resources */,
+				3DC5203A2E6EF6F000B1DDD3 /* Sources */,
+				3DC5203B2E6EF6F000B1DDD3 /* Frameworks */,
+				3DC5203C2E6EF6F000B1DDD3 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				3D12E0812E6920C400EF65C0 /* netscan */,
+				3DC520402E6EF6F000B1DDD3 /* netscan */,
 			);
 			name = netscan;
 			packageProductDependencies = (
-				3D12E0F42E69270E00EF65C0 /* NIO */,
-				3D12E0F62E69270E00EF65C0 /* NIOConcurrencyHelpers */,
-				3D12E0F82E69270E00EF65C0 /* NIOCore */,
-				3D12E0FA2E69270E00EF65C0 /* NIOEmbedded */,
-				3D12E0FC2E69270E00EF65C0 /* NIOFoundationCompat */,
 			);
 			productName = netscan;
-			productReference = 3D12E07F2E6920C400EF65C0 /* netscan.app */;
+			productReference = 3DC5203E2E6EF6F000B1DDD3 /* netscan.app */;
 			productType = "com.apple.product-type.application";
 		};
-		3D12E08B2E6920C500EF65C0 /* netscanTests */ = {
+		3DC5204A2E6EF6F000B1DDD3 /* netscanTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3D12E0A32E6920C500EF65C0 /* Build configuration list for PBXNativeTarget "netscanTests" */;
+			buildConfigurationList = 3DC520622E6EF6F000B1DDD3 /* Build configuration list for PBXNativeTarget "netscanTests" */;
 			buildPhases = (
-				3D12E0882E6920C500EF65C0 /* Sources */,
-				3D12E0892E6920C500EF65C0 /* Frameworks */,
-				3D12E08A2E6920C500EF65C0 /* Resources */,
+				3DC520472E6EF6F000B1DDD3 /* Sources */,
+				3DC520482E6EF6F000B1DDD3 /* Frameworks */,
+				3DC520492E6EF6F000B1DDD3 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				3D12E08E2E6920C500EF65C0 /* PBXTargetDependency */,
+				3DC5204D2E6EF6F000B1DDD3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				3D12E08F2E6920C500EF65C0 /* netscanTests */,
+				3DC5204E2E6EF6F000B1DDD3 /* netscanTests */,
 			);
 			name = netscanTests;
 			packageProductDependencies = (
 			);
 			productName = netscanTests;
-			productReference = 3D12E08C2E6920C500EF65C0 /* netscanTests.xctest */;
+			productReference = 3DC5204B2E6EF6F000B1DDD3 /* netscanTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		3D12E0952E6920C500EF65C0 /* netscanUITests */ = {
+		3DC520542E6EF6F000B1DDD3 /* netscanUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3D12E0A62E6920C500EF65C0 /* Build configuration list for PBXNativeTarget "netscanUITests" */;
+			buildConfigurationList = 3DC520652E6EF6F000B1DDD3 /* Build configuration list for PBXNativeTarget "netscanUITests" */;
 			buildPhases = (
-				3D12E0922E6920C500EF65C0 /* Sources */,
-				3D12E0932E6920C500EF65C0 /* Frameworks */,
-				3D12E0942E6920C500EF65C0 /* Resources */,
+				3DC520512E6EF6F000B1DDD3 /* Sources */,
+				3DC520522E6EF6F000B1DDD3 /* Frameworks */,
+				3DC520532E6EF6F000B1DDD3 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				3D12E0982E6920C500EF65C0 /* PBXTargetDependency */,
+				3DC520572E6EF6F000B1DDD3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				3D12E0992E6920C500EF65C0 /* netscanUITests */,
+				3DC520582E6EF6F000B1DDD3 /* netscanUITests */,
 			);
 			name = netscanUITests;
 			packageProductDependencies = (
 			);
 			productName = netscanUITests;
-			productReference = 3D12E0962E6920C500EF65C0 /* netscanUITests.xctest */;
+			productReference = 3DC520552E6EF6F000B1DDD3 /* netscanUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		3D12E0772E6920C400EF65C0 /* Project object */ = {
+		3DC520362E6EF6F000B1DDD3 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
-					3D12E07E2E6920C400EF65C0 = {
+					3DC5203D2E6EF6F000B1DDD3 = {
 						CreatedOnToolsVersion = 26.0;
 					};
-					3D12E08B2E6920C500EF65C0 = {
+					3DC5204A2E6EF6F000B1DDD3 = {
 						CreatedOnToolsVersion = 26.0;
-						TestTargetID = 3D12E07E2E6920C400EF65C0;
+						TestTargetID = 3DC5203D2E6EF6F000B1DDD3;
 					};
-					3D12E0952E6920C500EF65C0 = {
+					3DC520542E6EF6F000B1DDD3 = {
 						CreatedOnToolsVersion = 26.0;
-						TestTargetID = 3D12E07E2E6920C400EF65C0;
+						TestTargetID = 3DC5203D2E6EF6F000B1DDD3;
 					};
 				};
 			};
-			buildConfigurationList = 3D12E07A2E6920C400EF65C0 /* Build configuration list for PBXProject "netscan" */;
+			buildConfigurationList = 3DC520392E6EF6F000B1DDD3 /* Build configuration list for PBXProject "netscan" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = 3D12E0762E6920C400EF65C0;
+			mainGroup = 3DC520352E6EF6F000B1DDD3;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				3D12E0F32E69270E00EF65C0 /* XCRemoteSwiftPackageReference "swift-nio" */,
-			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 3D12E0802E6920C400EF65C0 /* Products */;
+			productRefGroup = 3DC5203F2E6EF6F000B1DDD3 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				3D12E07E2E6920C400EF65C0 /* netscan */,
-				3D12E08B2E6920C500EF65C0 /* netscanTests */,
-				3D12E0952E6920C500EF65C0 /* netscanUITests */,
+				3DC5203D2E6EF6F000B1DDD3 /* netscan */,
+				3DC5204A2E6EF6F000B1DDD3 /* netscanTests */,
+				3DC520542E6EF6F000B1DDD3 /* netscanUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		3D12E07D2E6920C400EF65C0 /* Resources */ = {
+		3DC5203C2E6EF6F000B1DDD3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3D12E08A2E6920C500EF65C0 /* Resources */ = {
+		3DC520492E6EF6F000B1DDD3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3D12E0942E6920C500EF65C0 /* Resources */ = {
+		3DC520532E6EF6F000B1DDD3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,21 +232,21 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		3D12E07B2E6920C400EF65C0 /* Sources */ = {
+		3DC5203A2E6EF6F000B1DDD3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3D12E0882E6920C500EF65C0 /* Sources */ = {
+		3DC520472E6EF6F000B1DDD3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3D12E0922E6920C500EF65C0 /* Sources */ = {
+		3DC520512E6EF6F000B1DDD3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -277,20 +256,20 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		3D12E08E2E6920C500EF65C0 /* PBXTargetDependency */ = {
+		3DC5204D2E6EF6F000B1DDD3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 3D12E07E2E6920C400EF65C0 /* netscan */;
-			targetProxy = 3D12E08D2E6920C500EF65C0 /* PBXContainerItemProxy */;
+			target = 3DC5203D2E6EF6F000B1DDD3 /* netscan */;
+			targetProxy = 3DC5204C2E6EF6F000B1DDD3 /* PBXContainerItemProxy */;
 		};
-		3D12E0982E6920C500EF65C0 /* PBXTargetDependency */ = {
+		3DC520572E6EF6F000B1DDD3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 3D12E07E2E6920C400EF65C0 /* netscan */;
-			targetProxy = 3D12E0972E6920C500EF65C0 /* PBXContainerItemProxy */;
+			target = 3DC5203D2E6EF6F000B1DDD3 /* netscan */;
+			targetProxy = 3DC520562E6EF6F000B1DDD3 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		3D12E09E2E6920C500EF65C0 /* Debug */ = {
+		3DC5205D2E6EF6F000B1DDD3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -326,8 +305,6 @@
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = KM3W5N4WXF;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -339,7 +316,6 @@
 					"DEBUG=1",
 					"$(inherited)",
 				);
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -352,11 +328,10 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
 			};
 			name = Debug;
 		};
-		3D12E09F2E6920C500EF65C0 /* Release */ = {
+		3DC5205E2E6EF6F000B1DDD3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -392,14 +367,11 @@
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = KM3W5N4WXF;
-				ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;
 				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
@@ -410,26 +382,35 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
 			};
 			name = Release;
 		};
-		3D12E0A12E6920C500EF65C0 /* Debug */ = {
+		3DC520602E6EF6F000B1DDD3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = netscan/netscan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = KM3W5N4WXF;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = NetScan;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "This app looks for devices on the local network.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -440,10 +421,10 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = plus.agility.netscan;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -452,31 +433,41 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 2.6;
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
-		3D12E0A22E6920C500EF65C0 /* Release */ = {
+		3DC520612E6EF6F000B1DDD3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = netscan/netscan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = KM3W5N4WXF;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
-				GCC_TREAT_WARNINGS_AS_ERRORS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = NetScan;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "This app looks for devices on the local network.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -487,10 +478,10 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = plus.agility.netscan;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -499,16 +490,16 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				XROS_DEPLOYMENT_TARGET = 2.6;
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
-		3D12E0A42E6920C500EF65C0 /* Debug */ = {
+		3DC520632E6EF6F000B1DDD3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -517,7 +508,7 @@
 				DEVELOPMENT_TEAM = KM3W5N4WXF;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = plus.agility.netscanTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -534,7 +525,7 @@
 			};
 			name = Debug;
 		};
-		3D12E0A52E6920C500EF65C0 /* Release */ = {
+		3DC520642E6EF6F000B1DDD3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -543,7 +534,7 @@
 				DEVELOPMENT_TEAM = KM3W5N4WXF;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = plus.agility.netscanTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -560,7 +551,7 @@
 			};
 			name = Release;
 		};
-		3D12E0A72E6920C500EF65C0 /* Debug */ = {
+		3DC520662E6EF6F000B1DDD3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -568,7 +559,7 @@
 				DEVELOPMENT_TEAM = KM3W5N4WXF;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = plus.agility.netscanUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -585,7 +576,7 @@
 			};
 			name = Debug;
 		};
-		3D12E0A82E6920C500EF65C0 /* Release */ = {
+		3DC520672E6EF6F000B1DDD3 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -593,7 +584,7 @@
 				DEVELOPMENT_TEAM = KM3W5N4WXF;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = plus.agility.netscanUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -613,82 +604,43 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		3D12E07A2E6920C400EF65C0 /* Build configuration list for PBXProject "netscan" */ = {
+		3DC520392E6EF6F000B1DDD3 /* Build configuration list for PBXProject "netscan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3D12E09E2E6920C500EF65C0 /* Debug */,
-				3D12E09F2E6920C500EF65C0 /* Release */,
+				3DC5205D2E6EF6F000B1DDD3 /* Debug */,
+				3DC5205E2E6EF6F000B1DDD3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		3D12E0A02E6920C500EF65C0 /* Build configuration list for PBXNativeTarget "netscan" */ = {
+		3DC5205F2E6EF6F000B1DDD3 /* Build configuration list for PBXNativeTarget "netscan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3D12E0A12E6920C500EF65C0 /* Debug */,
-				3D12E0A22E6920C500EF65C0 /* Release */,
+				3DC520602E6EF6F000B1DDD3 /* Debug */,
+				3DC520612E6EF6F000B1DDD3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		3D12E0A32E6920C500EF65C0 /* Build configuration list for PBXNativeTarget "netscanTests" */ = {
+		3DC520622E6EF6F000B1DDD3 /* Build configuration list for PBXNativeTarget "netscanTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3D12E0A42E6920C500EF65C0 /* Debug */,
-				3D12E0A52E6920C500EF65C0 /* Release */,
+				3DC520632E6EF6F000B1DDD3 /* Debug */,
+				3DC520642E6EF6F000B1DDD3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		3D12E0A62E6920C500EF65C0 /* Build configuration list for PBXNativeTarget "netscanUITests" */ = {
+		3DC520652E6EF6F000B1DDD3 /* Build configuration list for PBXNativeTarget "netscanUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3D12E0A72E6920C500EF65C0 /* Debug */,
-				3D12E0A82E6920C500EF65C0 /* Release */,
+				3DC520662E6EF6F000B1DDD3 /* Debug */,
+				3DC520672E6EF6F000B1DDD3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		3D12E0F32E69270E00EF65C0 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-nio.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.86.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		3D12E0F42E69270E00EF65C0 /* NIO */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3D12E0F32E69270E00EF65C0 /* XCRemoteSwiftPackageReference "swift-nio" */;
-			productName = NIO;
-		};
-		3D12E0F62E69270E00EF65C0 /* NIOConcurrencyHelpers */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3D12E0F32E69270E00EF65C0 /* XCRemoteSwiftPackageReference "swift-nio" */;
-			productName = NIOConcurrencyHelpers;
-		};
-		3D12E0F82E69270E00EF65C0 /* NIOCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3D12E0F32E69270E00EF65C0 /* XCRemoteSwiftPackageReference "swift-nio" */;
-			productName = NIOCore;
-		};
-		3D12E0FA2E69270E00EF65C0 /* NIOEmbedded */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3D12E0F32E69270E00EF65C0 /* XCRemoteSwiftPackageReference "swift-nio" */;
-			productName = NIOEmbedded;
-		};
-		3D12E0FC2E69270E00EF65C0 /* NIOFoundationCompat */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3D12E0F32E69270E00EF65C0 /* XCRemoteSwiftPackageReference "swift-nio" */;
-			productName = NIOFoundationCompat;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = 3D12E0772E6920C400EF65C0 /* Project object */;
+	rootObject = 3DC520362E6EF6F000B1DDD3 /* Project object */;
 }
