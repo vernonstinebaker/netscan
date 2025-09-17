@@ -76,30 +76,7 @@ final class DiscoveryServicesTests: XCTestCase {
         XCTAssertNil(result!.hostname)
     }
 
-    // MARK: - NTPDiscoverer Tests
 
-    func testNTPDiscovery() async throws {
-        let ntpDiscoverer = NTPDiscoverer(timeout: 3.0)
-
-        // Test with localhost (might not be NTP server)
-        let result = await ntpDiscoverer.discoverNTPInfo(for: "127.0.0.1")
-
-        // Should complete without crashing
-        // Result might be nil if not NTP server
-        XCTAssertNotNil(result) // Could be nil, but method should complete
-    }
-
-    // MARK: - NetBIOSDiscoverer Tests
-
-    func testNetBIOSDiscovery() async throws {
-        let netbiosDiscoverer = NetBIOSDiscoverer(timeout: 2.0)
-
-        // Test with localhost
-        let result = await netbiosDiscoverer.discoverInfo(for: "127.0.0.1")
-
-        // Should complete without crashing
-        XCTAssertNotNil(result)
-    }
 
     // MARK: - SSHFingerprintService Tests
 

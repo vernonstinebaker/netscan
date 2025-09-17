@@ -107,6 +107,10 @@ This document outlines the step-by-step plan to add the additional features depi
   - ✅ Implement search (name, IP, vendor, hostname, MAC, services)
   - ✅ Add filters (online only, device type, discovery source)
   - ⏳ Vendor‑specific filter and custom device grouping
+- [ ] **Device Details Enhancements:**
+  - [ ] Add "Complete Port Scan" action to scan all 65535 ports (with progress indicator)
+  - [ ] Show detailed port scan results with service identification
+  - [ ] Add port scan history and comparison features
 - [ ] **Export & Reporting:**
   - Export scan results to CSV/JSON
   - Generate network topology reports
@@ -119,17 +123,26 @@ This document outlines the step-by-step plan to add the additional features depi
 
 ### 🎯 **Immediate Next Priorities:**
 
-1.  **Service Insight** - Version detection and lightweight fingerprinting for common services.
-2.  **Classification** - Deeper OS/capability detection with confidence scoring.
-3.  **Performance** - Advanced tuning (dynamic concurrency, large subnet strategies).
-4.  **Advanced UX** - Vendor filter, custom grouping, export/reporting.
+1.  **Device Details Enhancement** - Add complete port scan functionality from Device Details page
+2.  **Service Insight** - Version detection and lightweight fingerprinting for common services.
+3.  **Classification** - Deeper OS/capability detection with confidence scoring.
+4.  **Performance** - Advanced tuning (dynamic concurrency, large subnet strategies).
+5.  **Advanced UX** - Vendor filter, custom grouping, export/reporting.
 
 ---
 
-## 🔧 2025-09-04 Work Log (Ongoing)
+## 🔧 2025-09-08 Work Log (Ongoing)
 
 This section tracks incremental fixes and tests as they land.
 
+- [x] **Phase 1 Optimization**: Removed low-value discovery methods (NTPDiscoverer, NetBIOSDiscoverer) to focus on home network use cases
+- [x] **Phase 2 Optimization**: Implemented tiered discovery system with reduced timeouts and improved performance
+  - [x] Tier 1: Fast methods (Bonjour + ARP) with 3.0s timeout
+  - [x] Tier 2: Medium methods (SSDP + WS-Discovery) with 2.0-3.0s timeout
+  - [x] Immediate device updates and service scanning when devices are discovered
+- [x] **Tiered Service Scanning**: Prioritized common home network ports (HTTP, HTTPS, SSH, DNS, Telnet first)
+- [x] **KV Store Integration**: Load previous scan data first, then immediately check device online status
+- [x] **Swift 6 Compatibility**: Fixed main actor isolation warnings for NetworkService creation and debugLog calls
 - [x] Fix: Preserve/merge `openPorts` in `ScanViewModel.updateDevice` instead of overwriting. Add unit tests for port/service merge semantics. (2025-09-04)
 - [x] Improve: Service mapping accuracy
   - [x] `BonjourCollector.mapServiceType` returns `.unknown` for unmapped types

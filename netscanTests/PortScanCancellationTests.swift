@@ -1,21 +1,27 @@
 import XCTest
+import Foundation
 @testable import netscan
 
+// Use ScannedPort type alias to avoid Foundation.NSPort conflict
 private actor FakePortScannerFast: PortScanning {
-    func scanPorts(portRange: ClosedRange<UInt16>) async -> [netscan.Port] {
-        return [netscan.Port(number: 80, serviceName: "http", description: "Open", status: .open)]
+    func scanPorts(portRange: ClosedRange<UInt16>) async -> [ScannedPort] {
+        return await MainActor.run {
+            [ScannedPort(number: 80, serviceName: "http", description: "Open", status: .open)]
+        }
     }
 }
 
 private actor FakePortScannerSlow: PortScanning {
-    func scanPorts(portRange: ClosedRange<UInt16>) async -> [netscan.Port] {
+    func scanPorts(portRange: ClosedRange<UInt16>) async -> [ScannedPort] {
         // Simulate a long-running scan that respects cancellation
         let start = Date()
         while Date().timeIntervalSince(start) < 1.0 {
             if Task.isCancelled { return [] }
             try? await Task.sleep(nanoseconds: 50_000_000) // 50ms chunks
         }
-        return [netscan.Port(number: 22, serviceName: "ssh", description: "Open", status: .open)]
+        return await MainActor.run {
+            [ScannedPort(number: 22, serviceName: "ssh", description: "Open", status: .open)]
+        }
     }
 }
 

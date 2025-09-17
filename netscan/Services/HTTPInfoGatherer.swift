@@ -26,7 +26,9 @@ public actor HTTPInfoGatherer {
         let urlString = port == (useHTTPS ? 443 : 80) ? "\(scheme)://\(host)" : "\(scheme)://\(host):\(port)"
 
         guard let url = URL(string: urlString) else {
-            debugLog("[HTTPInfoGatherer] Invalid URL: \(urlString)")
+            await MainActor.run {
+                debugLog("[HTTPInfoGatherer] Invalid URL: \(urlString)")
+            }
             return nil
         }
 
@@ -36,11 +38,15 @@ public actor HTTPInfoGatherer {
             config.timeoutIntervalForResource = timeout
             let session = URLSession(configuration: config)
 
-            debugLog("[HTTPInfoGatherer] Probing \(urlString)")
+            await MainActor.run {
+                debugLog("[HTTPInfoGatherer] Probing \(urlString)")
+            }
             let (data, response) = try await session.data(from: url)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                debugLog("[HTTPInfoGatherer] Not an HTTP response")
+                await MainActor.run {
+                    debugLog("[HTTPInfoGatherer] Not an HTTP response")
+                }
                 return nil
             }
 
@@ -96,7 +102,11 @@ public actor HTTPInfoGatherer {
                 }
             }
 
-            debugLog("[HTTPInfoGatherer] Gathered info for \(host):\(port) - server: \(serverHeader ?? "unknown"), mac: \(macAddress ?? "none"), vendor: \(vendor ?? "unknown")")
+            let finalMacAddress = macAddress
+            let finalVendor = vendor
+            await MainActor.run {
+                debugLog("[HTTPInfoGatherer] Gathered info for \(host):\(port) - server: \(serverHeader ?? "unknown"), mac: \(finalMacAddress ?? "none"), vendor: \(finalVendor ?? "unknown")")
+            }
 
             return HTTPInfo(
                 serverHeader: serverHeader,
@@ -110,7 +120,9 @@ public actor HTTPInfoGatherer {
             )
 
         } catch {
-            debugLog("[HTTPInfoGatherer] Failed to gather HTTP info for \(host):\(port) - \(error)")
+            await MainActor.run {
+                debugLog("[HTTPInfoGatherer] Failed to gather HTTP info for \(host):\(port) - \(error)")
+            }
             return nil
         }
     }

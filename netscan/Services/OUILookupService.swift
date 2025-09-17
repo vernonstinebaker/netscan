@@ -24,36 +24,50 @@ public actor OUILookupService {
     private func loadOUIDataIfNeeded() async {
         guard !hasLoadedData else { return }
 
-        debugLog("[OUILookupService] Initializing and loading OUI data...")
+        await MainActor.run {
+            debugLog("[OUILookupService] Initializing and loading OUI data...")
+        }
         
         guard let url = urlForResource(name: "oui", ext: "csv") else {
-            debugLog("[OUILookupService] FATAL ERROR: oui.csv not found in bundles.")
-            debugLog("[OUILookupService] Searched in Bundle.main: \(Bundle.main.bundlePath)")
-            debugLog("[OUILookupService] Bundle.main resource path: \(Bundle.main.resourcePath ?? "nil")")
+            await MainActor.run {
+                debugLog("[OUILookupService] FATAL ERROR: oui.csv not found in bundles.")
+                debugLog("[OUILookupService] Searched in Bundle.main: \(Bundle.main.bundlePath)")
+                debugLog("[OUILookupService] Bundle.main resource path: \(Bundle.main.resourcePath ?? "nil")")
+            }
             // Try to list files in the Resources directory
             if let resourcePath = Bundle.main.resourcePath {
                 do {
                     let files = try FileManager.default.contentsOfDirectory(atPath: resourcePath)
-                    debugLog("[OUILookupService] Files in Resources: \(files)")
+                    await MainActor.run {
+                        debugLog("[OUILookupService] Files in Resources: \(files)")
+                    }
                 } catch {
-                    debugLog("[OUILookupService] Error listing Resources: \(error)")
+                    await MainActor.run {
+                        debugLog("[OUILookupService] Error listing Resources: \(error)")
+                    }
                 }
             }
             return
         }
         
-        debugLog("[OUILookupService] Found oui.csv at: \(url.path)")
-        
+        await MainActor.run {
+            debugLog("[OUILookupService] Found oui.csv at: \(url.path)")
+        }
+
         do {
             let data = try String(contentsOf: url, encoding: .utf8)
             // Support both LF and CRLF line endings
             let normalized = data.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
             let lines = normalized.split(separator: "\n")
-            debugLog("[OUILookupService] Read \(lines.count) lines from oui.csv")
-            
+            await MainActor.run {
+                debugLog("[OUILookupService] Read \(lines.count) lines from oui.csv")
+            }
+
             // Skip the header line
             let dataLines = lines.dropFirst()
-            debugLog("[OUILookupService] Processing \(dataLines.count) data lines")
+            await MainActor.run {
+                debugLog("[OUILookupService] Processing \(dataLines.count) data lines")
+            }
             
             for line in dataLines {
                 // Skip empty lines
@@ -63,7 +77,9 @@ public actor OUILookupService {
                 // Split by comma, but be careful with quoted fields
                 let columns = parseCSVLine(trimmedLine)
                 guard columns.count >= 3 else {
-                    debugLog("[OUILookupService] Skipping malformed line: \(trimmedLine)")
+                    await MainActor.run {
+                        debugLog("[OUILookupService] Skipping malformed line: \(trimmedLine)")
+                    }
                     continue
                 }
                 
@@ -79,20 +95,35 @@ public actor OUILookupService {
             }
             
             hasLoadedData = true
-            debugLog("[OUILookupService] OUI data loaded successfully. \(vendorCache.count) entries.")
+            let cacheCount = vendorCache.count
+            let isCacheEmpty = vendorCache.isEmpty
+            let firstEntry = vendorCache.first
+
+            await MainActor.run {
+                debugLog("[OUILookupService] OUI data loaded successfully. \(cacheCount) entries.")
+            }
 
             // Show a few examples
-            if vendorCache.isEmpty {
-                debugLog("[OUILookupService] WARNING: vendorCache is empty after parsing. First 10 raw lines:\n\(lines.prefix(10).joined(separator: "\n"))")
-            } else if let firstEntry = vendorCache.first {
-                debugLog("[OUILookupService] Sample entry: \(firstEntry.key) -> \(firstEntry.value)")
+            await MainActor.run {
+                if isCacheEmpty {
+                    debugLog("[OUILookupService] WARNING: vendorCache is empty after parsing. First 10 raw lines:\n\(lines.prefix(10).joined(separator: "\n"))")
+                } else if let firstEntry = firstEntry {
+                    debugLog("[OUILookupService] Sample entry: \(firstEntry.key) -> \(firstEntry.value)")
+                }
             }
-            
+
         } catch {
-            debugLog("[OUILookupService] Error loading OUI data: \(error)")
+            await MainActor.run {
+                debugLog("[OUILookupService] Error loading OUI data: \(error)")
+            }
         }
     }
     
+    /// Public method to preload OUI data on app startup so vendor lookups are fast when devices are discovered.
+    public func preload() async {
+        await loadOUIDataIfNeeded()
+    }
+
     // Helper function to parse CSV lines properly handling quoted fields
     private func parseCSVLine(_ line: String) -> [String] {
         var result: [String] = []
@@ -119,6 +150,7 @@ public actor OUILookupService {
     }
 
     public func findVendor(for macAddress: String?) async -> String? {
+        await loadOUIDataIfNeeded()
         guard let mac = macAddress else { return nil }
         let oui = String(mac.prefix(8)).replacingOccurrences(of: ":", with: "").uppercased()
         return vendorCache[oui]

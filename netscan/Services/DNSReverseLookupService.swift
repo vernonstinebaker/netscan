@@ -17,11 +17,15 @@ public actor DNSReverseLookupService {
 
     /// Perform reverse DNS lookup for an IP address
     public func reverseLookup(_ ipAddress: String) async -> DNSInfo? {
-        debugLog("[DNSReverseLookup] Starting reverse lookup for \(ipAddress)")
+        await MainActor.run {
+            debugLog("[DNSReverseLookup] Starting reverse lookup for \(ipAddress)")
+        }
 
         // For now, disable actual DNS lookups to prevent SIGCHLD issues
         // Return unresolved to avoid crashes
-        debugLog("[DNSReverseLookup] DNS lookup disabled to prevent SIGCHLD signal issues")
+        await MainActor.run {
+            debugLog("[DNSReverseLookup] DNS lookup disabled to prevent SIGCHLD signal issues")
+        }
         return DNSInfo(hostname: nil, aliases: [], resolved: false)
     }
 
@@ -48,7 +52,10 @@ public actor DNSReverseLookupService {
             }
         }
 
-        debugLog("[DNSReverseLookup] Completed batch lookup for \(ipAddresses.count) IPs, found \(results.count) hostnames")
+        let resultCount = results.count
+        await MainActor.run {
+            debugLog("[DNSReverseLookup] Completed batch lookup for \(ipAddresses.count) IPs, found \(resultCount) hostnames")
+        }
         return results
     }
 

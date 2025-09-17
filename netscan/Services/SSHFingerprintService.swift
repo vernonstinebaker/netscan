@@ -23,7 +23,9 @@ public actor SSHFingerprintService {
 
     /// Get SSH information from a host
     public func getSSHInfo(for ipAddress: String, port: Int = 22) async -> SSHInfo? {
-        debugLog("[SSHFingerprint] Starting SSH fingerprint for \(ipAddress):\(port)")
+        await MainActor.run {
+            debugLog("[SSHFingerprint] Starting SSH fingerprint for \(ipAddress):\(port)")
+        }
 
         guard let serverAddress = try? NWEndpoint.hostPort(host: NWEndpoint.Host(ipAddress), port: NWEndpoint.Port(integerLiteral: UInt16(port))) else {
             return nil
@@ -50,14 +52,18 @@ public actor SSHFingerprintService {
                         connection.cancel()
 
                         if let error = error {
-                            debugLog("[SSHFingerprint] SSH connection error: \(error)")
+                            Task { @MainActor in
+                                debugLog("[SSHFingerprint] SSH connection error: \(error)")
+                            }
                             continuation.resume(returning: nil)
                             return
                         }
 
                         if let data = data, let banner = String(data: data, encoding: .utf8) {
                             let sshInfo = SSHFingerprintService.parseSSHBanner(banner)
-                            debugLog("[SSHFingerprint] SSH banner from \(ipAddress):\(port): \(sshInfo.banner ?? "unknown")")
+                            Task { @MainActor in
+                                debugLog("[SSHFingerprint] SSH banner from \(ipAddress):\(port): \(sshInfo.banner ?? "unknown")")
+                            }
                             continuation.resume(returning: sshInfo)
                         } else {
                             continuation.resume(returning: nil)
@@ -225,7 +231,10 @@ public actor SSHFingerprintService {
             }
         }
 
-        debugLog("[SSHFingerprint] Found \(results.count) SSH servers")
+        let finalResultsCount = results.count
+        await MainActor.run {
+            debugLog("[SSHFingerprint] Found \(finalResultsCount) SSH servers")
+        }
         return results
     }
 }

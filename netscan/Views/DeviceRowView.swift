@@ -43,9 +43,11 @@ public struct DeviceRowView: View {
     
     private var deviceInfo: some View {
         VStack(alignment: .leading, spacing: Theme.space(.sm)) {
-            Text(device.name)
+            Text(device.manufacturer ?? device.name)
                 .font(Theme.Typography.headline)
                 .foregroundColor(Theme.color(.textPrimary))
+                .lineLimit(1)
+                .truncationMode(.tail)
             
             // Show IP and MAC on separate rows so long addresses don't wrap horizontally
             VStack(alignment: .leading, spacing: Theme.space(.xs)) {

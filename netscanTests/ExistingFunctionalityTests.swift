@@ -1,6 +1,7 @@
 import XCTest
 @testable import netscan
 
+@MainActor
 final class ExistingFunctionalityTests: XCTestCase {
 
     // MARK: - Ping Functionality Tests

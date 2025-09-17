@@ -1,29 +1,41 @@
 import Foundation
 import Network
-import Darwin
+
+// Type alias to avoid ambiguity with Foundation.NSPort
+public typealias ScannedPort = Port
 
 public protocol PortScanning: Sendable {
-    func scanPorts(portRange: ClosedRange<UInt16>) async -> [Port]
+    func scanPorts(portRange: ClosedRange<UInt16>) async -> [ScannedPort]
 }
 
 public actor PortScanner: PortScanning {
-    private let host: NWEndpoint.Host
-    
+    private let host: String
+
     public init(host: String) {
-        self.host = NWEndpoint.Host(host)
+        self.host = host
     }
-    
-    public func scanPorts(portRange: ClosedRange<UInt16>) async -> [Port] {
+
+    public func scanPorts(portRange: ClosedRange<UInt16>) async -> [ScannedPort] {
         var openPorts: [Port] = []
         
-        // Scan common ports instead of the full range to avoid performance issues
-        let commonPorts: [UInt16] = [21, 22, 23, 25, 53, 80, 110, 143, 443, 993, 995]
-        let portsToScan = commonPorts.filter { portRange.contains($0) }
-        
+        // Tiered port scanning for home networks - prioritize common services
+        let tier1Ports: [UInt16] = [80, 443, 22, 53, 23] // HTTP, HTTPS, SSH, DNS, Telnet
+        let tier2Ports: [UInt16] = [21, 25, 110, 143, 993, 995, 8080, 8443] // FTP, SMTP, POP3, IMAP, additional web ports
+        let tier3Ports: [UInt16] = [139, 445, 548, 631, 3689] // NetBIOS, SMB, AFP, IPP, DAAP
+
+        var allPortsToScan: [UInt16] = []
+
+        // Add ports in priority order
+        allPortsToScan.append(contentsOf: tier1Ports.filter { portRange.contains($0) })
+        allPortsToScan.append(contentsOf: tier2Ports.filter { portRange.contains($0) })
+        allPortsToScan.append(contentsOf: tier3Ports.filter { portRange.contains($0) })
+
+        let portsToScan = allPortsToScan
+
         let host = self.host
         await withTaskGroup(of: Port?.self) { group in
             for port in portsToScan {
-                group.addTask { @Sendable [host] in
+                group.addTask {
                     if await self.isPortOpen(port, host: host) {
                         let name = self.getServiceName(for: port)
                         return await MainActor.run { Port(number: Int(port), serviceName: name, description: "Open", status: .open) }
@@ -42,9 +54,8 @@ public actor PortScanner: PortScanning {
         return openPorts
     }
     
-    private nonisolated func isPortOpen(_ port: UInt16, host: NWEndpoint.Host) async -> Bool {
+    private nonisolated func isPortOpen(_ port: UInt16, host: String) async -> Bool {
         return await Task.detached {
-            let host = String(describing: host)
             let portValue = in_port_t(port.bigEndian)
             
             // Create socket

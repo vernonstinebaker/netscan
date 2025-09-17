@@ -1,6 +1,7 @@
 import XCTest
 @testable import netscan
 
+@MainActor
 final class NetworkInfoTests: XCTestCase {
     func testInit() {
         let info = NetworkInfo(ip: "192.168.1.1", netmask: "255.255.255.0", cidr: 24, network: "192.168.1.0", broadcast: "192.168.1.255")

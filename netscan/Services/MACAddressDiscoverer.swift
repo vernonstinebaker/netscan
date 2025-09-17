@@ -13,39 +13,53 @@ public actor MACAddressDiscoverer {
 
     /// Discover MAC address for a host using multiple methods
     public func discoverMACAddress(for ipAddress: String) async -> String? {
-        debugLog("[MACAddressDiscoverer] Starting MAC discovery for \(ipAddress)")
+        await MainActor.run {
+            debugLog("[MACAddressDiscoverer] Starting MAC discovery for \(ipAddress)")
+        }
 
         // Method 1: ARP table lookup (most reliable)
         if let mac = await getMACFromARP(ipAddress) {
-            debugLog("[MACAddressDiscoverer] Found MAC via ARP: \(mac)")
+            await MainActor.run {
+                debugLog("[MACAddressDiscoverer] Found MAC via ARP: \(mac)")
+            }
             return mac
         }
 
         // Method 2: HTTP header inspection
         if let mac = await getMACFromHTTP(ipAddress) {
-            debugLog("[MACAddressDiscoverer] Found MAC via HTTP: \(mac)")
+            await MainActor.run {
+                debugLog("[MACAddressDiscoverer] Found MAC via HTTP: \(mac)")
+            }
             return mac
         }
 
         // Method 3: Bonjour TXT records (if available)
         if let mac = await getMACFromBonjour(ipAddress) {
-            debugLog("[MACAddressDiscoverer] Found MAC via Bonjour: \(mac)")
+            await MainActor.run {
+                debugLog("[MACAddressDiscoverer] Found MAC via Bonjour: \(mac)")
+            }
             return mac
         }
 
         // Method 4: SNMP queries (for network devices)
         if let mac = await getMACFromSNMP(ipAddress) {
-            debugLog("[MACAddressDiscoverer] Found MAC via SNMP: \(mac)")
+            await MainActor.run {
+                debugLog("[MACAddressDiscoverer] Found MAC via SNMP: \(mac)")
+            }
             return mac
         }
 
         // Method 5: System ARP cache
         if let mac = await getMACFromSystemCache(ipAddress) {
-            debugLog("[MACAddressDiscoverer] Found MAC via system cache: \(mac)")
+            await MainActor.run {
+                debugLog("[MACAddressDiscoverer] Found MAC via system cache: \(mac)")
+            }
             return mac
         }
 
-        debugLog("[MACAddressDiscoverer] No MAC address found for \(ipAddress)")
+        await MainActor.run {
+            debugLog("[MACAddressDiscoverer] No MAC address found for \(ipAddress)")
+        }
         return nil
     }
 
@@ -108,6 +122,16 @@ public actor MACAddressDiscoverer {
 
     #if os(macOS)
     private func getMACFromSystemCommand(_ ipAddress: String) async -> String? {
+        // First, ping the IP to populate the ARP table
+        let pingProcess = Process()
+        pingProcess.executableURL = URL(fileURLWithPath: "/sbin/ping")
+        pingProcess.arguments = ["-c", "1", "-t", "1", ipAddress]
+        try? pingProcess.run()
+        pingProcess.waitUntilExit()
+
+        // Small delay to allow ARP table to update
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/arp")
         process.arguments = ["-n", ipAddress]
@@ -124,13 +148,15 @@ public actor MACAddressDiscoverer {
                 // Parse arp output: "192.168.1.1 (192.168.1.1) at aa:bb:cc:dd:ee:ff on en0"
                 let pattern = #"at ([0-9a-f:]+)"#
                 if let regex = try? NSRegularExpression(pattern: pattern, options: []),
-                   let match = regex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
-                   let range = Range(match.range(at: 1), in: output) {
+                    let match = regex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+                    let range = Range(match.range(at: 1), in: output) {
                     return String(output[range]).uppercased()
                 }
             }
         } catch {
-            debugLog("[MACAddressDiscoverer] Failed to run arp command: \(error)")
+            await MainActor.run {
+                debugLog("[MACAddressDiscoverer] Failed to run arp command: \(error)")
+            }
         }
 
         return nil

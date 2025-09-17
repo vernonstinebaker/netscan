@@ -21,7 +21,9 @@ final class NetworkScannerTests: XCTestCase {
         
         // Mock port scanner that returns quickly
         let fakePortScan: NetworkScanner.PortScanFunc = { host in
-            return [Port(number: 80, serviceName: "http", description: "HTTP", status: .open)]
+            return await MainActor.run {
+                [Port(number: 80, serviceName: "http", description: "HTTP", status: .open)]
+            }
         }
 
         let scanner = NetworkScanner(timeout: 0.1, probe: fakeProbe, portScan: fakePortScan)

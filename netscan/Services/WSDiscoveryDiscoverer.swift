@@ -45,7 +45,11 @@ public actor WSDiscoveryDiscoverer {
             if case .ready = state {
                 let payload = wsProbe()
                 connection.send(content: payload, completion: .contentProcessed { error in
-                    if let err = error { debugLog("WS-Discovery: send error: \(err)") }
+                    if let err = error {
+                        Task { @MainActor in
+                            debugLog("WS-Discovery: send error: \(err)")
+                        }
+                    }
                 })
             }
         }

@@ -1,6 +1,7 @@
 import XCTest
 @testable import netscan
 
+@MainActor
 final class PortScannerTests: XCTestCase {
     var scanner: PortScanner!
 

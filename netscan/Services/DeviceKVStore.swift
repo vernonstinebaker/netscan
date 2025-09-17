@@ -1,4 +1,5 @@
 import Foundation
+import CloudKit
 
 public struct DeviceSnapshot: Codable, Sendable, Hashable {
     public let id: String
@@ -23,41 +24,64 @@ public enum DeviceKVStore {
     }
 
     public static func loadSnapshots(for key: String) -> [DeviceSnapshot] {
-        let store = UserDefaults.standard
-        guard let data = store.data(forKey: key) else {
-            print("[DeviceKVStore] No data found for key: \(key)")
-            return []
+        // Try ubiquitous (iCloud) store first, then fall back to UserDefaults
+        let ubi = NSUbiquitousKeyValueStore.default
+        if let obj = ubi.object(forKey: key) {
+            if let data = obj as? Data {
+                return decodeSnapshots(data: data, source: "iCloud")
+            }
+            if let str = obj as? String, let data = Data(base64Encoded: str) {
+                return decodeSnapshots(data: data, source: "iCloud(base64)")
+            }
         }
+
+        let store = UserDefaults.standard
+        if let data = store.data(forKey: key) {
+            return decodeSnapshots(data: data, source: "UserDefaults")
+        }
+
+        print("[DeviceKVStore] No data found for key: \(key)")
+        return []
+    }
+
+    private static func decodeSnapshots(data: Data, source: String) -> [DeviceSnapshot] {
         do {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let snapshots = try decoder.decode([DeviceSnapshot].self, from: data)
-            print("[DeviceKVStore] Loaded \(snapshots.count) snapshots for key: \(key)")
+            print("[DeviceKVStore] Loaded \(snapshots.count) snapshots for key from \(source)")
             for snap in snapshots {
                 print("[DeviceKVStore] Loaded device: \(snap.ip) discoverySource: \(snap.discoverySource ?? "nil")")
             }
             return snapshots
         } catch {
-            print("[DeviceKVStore] Failed to decode snapshots: \(error)")
+            print("[DeviceKVStore] Failed to decode snapshots from \(source): \(error)")
             return []
         }
     }
 
     public static func saveSnapshots(_ snapshots: [DeviceSnapshot], for key: String) {
-        let store = UserDefaults.standard
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        if let data = try? encoder.encode(snapshots) {
-            print("[DeviceKVStore] Saving \(snapshots.count) snapshots for key: \(key)")
-            for snap in snapshots {
-                print("[DeviceKVStore] Saving device: \(snap.ip) discoverySource: \(snap.discoverySource ?? "nil")")
-            }
-            store.set(data, forKey: key)
-            store.synchronize()
-            print("[DeviceKVStore] Snapshots saved successfully")
-        } else {
+        guard let data = try? encoder.encode(snapshots) else {
             print("[DeviceKVStore] Failed to encode snapshots")
+            return
         }
+
+        // Save to UserDefaults
+        let store = UserDefaults.standard
+        print("[DeviceKVStore] Saving \(snapshots.count) snapshots for key: \(key) to UserDefaults")
+        for snap in snapshots {
+            print("[DeviceKVStore] Saving device: \(snap.ip) discoverySource: \(snap.discoverySource ?? "nil")")
+        }
+        store.set(data, forKey: key)
+        store.synchronize()
+
+        // Also save to iCloud KVS (if available) for cross-device sync
+        let ubi = NSUbiquitousKeyValueStore.default
+        ubi.set(data, forKey: key)
+        ubi.synchronize()
+        print("[DeviceKVStore] Snapshots saved to iCloud and UserDefaults successfully")
     }
 
     public static func clearAll() {
@@ -69,5 +93,11 @@ public enum DeviceKVStore {
             }
         }
         store.synchronize()
+
+        let ubi = NSUbiquitousKeyValueStore.default
+        for key in ubi.dictionaryRepresentation.keys where key.hasPrefix(DeviceKVStore.rootPrefix) {
+            ubi.removeObject(forKey: key)
+        }
+        ubi.synchronize()
     }
 }

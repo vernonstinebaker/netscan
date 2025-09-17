@@ -45,6 +45,7 @@ public actor NetworkScanner {
         let doProbe = self.probe
         let timeout = self.timeout
         var index = 0
+        var lastProgressUpdate = 0
         while index < total {
             if Task.isCancelled { break }
             let upper = min(index + max(1, concurrency), total)
@@ -67,7 +68,11 @@ public actor NetworkScanner {
                 for await maybe in group {
                     scanned += 1
                     if let d = maybe { results.append(d) }
-                    onProgress?(Progress(scanned: scanned, total: total))
+                    // Update progress only every 10 scans to reduce UI updates
+                    if scanned - lastProgressUpdate >= 10 || scanned == total {
+                        lastProgressUpdate = scanned
+                        onProgress?(Progress(scanned: scanned, total: total))
+                    }
                 }
             }
             index = upper

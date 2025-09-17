@@ -85,7 +85,9 @@ public actor DeviceClassifier {
         for svc in services {
             if let p = svc.port {
                 if !combinedPorts.contains(where: { $0.number == p }) {
-                    combinedPorts.append(Port(number: p, serviceName: svc.name, description: svc.name, status: .open))
+                    await MainActor.run {
+                        combinedPorts.append(Port(number: p, serviceName: svc.name, description: svc.name, status: .open))
+                    }
                 }
             }
         }

@@ -32,9 +32,9 @@ final class ScanViewModel: ObservableObject {
     private let ouiService = OUILookupService.shared
     private let macDiscoverer = MACAddressDiscoverer()
     private let dnsLookupService = DNSReverseLookupService()
-    private let ntpDiscoverer = NTPDiscoverer()
+    // private let ntpDiscoverer = NTPDiscoverer() // Not implemented
     private let sshFingerprintService = SSHFingerprintService()
-    private let netbiosDiscoverer = NetBIOSDiscoverer()
+    // private let netbiosDiscoverer = NetBIOSDiscoverer() // Not implemented
     private let networkScanner = NetworkScanner()
     private let portScannerFactory: (String) -> PortScanning
     private var portScanInProgress: Set<String> = []
@@ -44,9 +44,15 @@ final class ScanViewModel: ObservableObject {
     private var persistTask: Task<Void, Never>? = nil
     private var currentNetworkKey: String? = nil
 
-    init(modelContext: ModelContext? = nil, portScannerFactory: @escaping (String) -> PortScanning = { host in PortScanner(host: host) }) {
+    init(modelContext: ModelContext? = nil, portScannerFactory: ((String) -> PortScanning)? = nil) {
         self.modelContext = modelContext
-        self.portScannerFactory = portScannerFactory
+        // Avoid constructing actor instances in a default parameter (which is evaluated outside the main-actor isolation).
+        if let factory = portScannerFactory {
+            self.portScannerFactory = factory
+        } else {
+            // init runs on the MainActor, so it's safe to create actor instances here.
+            self.portScannerFactory = { host in PortScanner(host: host) }
+        }
 
         if modelContext != nil {
             fetchDevicesFromDB(markAsOffline: true)
@@ -85,47 +91,47 @@ final class ScanViewModel: ObservableObject {
                 detectNetwork()
                 guard let info = networkInfo else { return }
 
-        // Bonjour should work on iOS with proper entitlements, but may need longer timeouts
-        async let bonjourTask = BonjourDiscoverer().discover(timeout: 6.0)
-        async let ssdpTask = SSDPDiscoverer().discover(timeout: 5.0)
-        async let wsTask = WSDiscoveryDiscoverer().discover(timeout: 4.0)
-        async let arpEntriesTask = arpParser.getARPTable()
+                // Bonjour should work on iOS with proper entitlements, but may need longer timeouts
+                async let bonjourTask = BonjourDiscoverer().discover(timeout: 6.0)
+                async let ssdpTask = SSDPDiscoverer().discover(timeout: 5.0)
+                async let wsTask = WSDiscoveryDiscoverer().discover(timeout: 4.0)
+                async let arpEntriesTask = arpParser.getARPTable()
 
-                 let bonjourResults = await bonjourTask
-                 print("[DEBUG] Bonjour discovery found \(bonjourResults.count) devices")
-                 if !bonjourResults.isEmpty {
-                     for (ip, host) in bonjourResults {
-                         try Task.checkCancellation()
-                         print("[DEBUG] Bonjour found device: \(ip) hostname: \(host.hostname ?? "unknown") services: \(host.services.count)")
-                         await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, hostname: host.hostname, services: host.services, discoverySource: .mdns)
-                     }
-                 } else {
-                     print("[DEBUG] Bonjour discovery returned 0 devices")
-                 }
+                let bonjourResults = await bonjourTask
+                print("[DEBUG] Bonjour discovery found \(bonjourResults.count) devices")
+                if !bonjourResults.isEmpty {
+                    for (ip, host) in bonjourResults {
+                        try Task.checkCancellation()
+                        print("[DEBUG] Bonjour found device: \(ip) hostname: \(host.hostname ?? "unknown") services: \(host.services.count)")
+                        await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, hostname: host.hostname, services: host.services, discoverySource: .mdns)
+                    }
+                } else {
+                    print("[DEBUG] Bonjour discovery returned 0 devices")
+                }
 
-                 let ssdpResults = await ssdpTask
-                 print("[DEBUG] SSDP discovery found \(ssdpResults.ips.count) devices: \(ssdpResults.ips)")
-                 if !ssdpResults.ips.isEmpty {
-                     for ip in ssdpResults.ips {
-                         try Task.checkCancellation()
-                         print("[DEBUG] SSDP found device: \(ip)")
-                         await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, discoverySource: .ssdp)
-                     }
-                 } else {
-                     print("[DEBUG] SSDP discovery returned 0 devices")
-                 }
+                let ssdpResults = await ssdpTask
+                print("[DEBUG] SSDP discovery found \(ssdpResults.ips.count) devices: \(ssdpResults.ips)")
+                if !ssdpResults.ips.isEmpty {
+                    for ip in ssdpResults.ips {
+                        try Task.checkCancellation()
+                        print("[DEBUG] SSDP found device: \(ip)")
+                        await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true, discoverySource: .ssdp)
+                    }
+                } else {
+                    print("[DEBUG] SSDP discovery returned 0 devices")
+                }
 
-                 let wsResults = await wsTask
-                 print("[DEBUG] WS-Discovery found \(wsResults.ips.count) devices: \(wsResults.ips)")
-                 if !wsResults.ips.isEmpty {
-                     for ip in wsResults.ips {
-                         try Task.checkCancellation()
-                         print("[DEBUG] WS-Discovery found device: \(ip)")
-                         await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true)
-                     }
-                 } else {
-                     print("[DEBUG] WS-Discovery returned 0 devices")
-                 }
+                let wsResults = await wsTask
+                print("[DEBUG] WS-Discovery found \(wsResults.ips.count) devices: \(wsResults.ips)")
+                if !wsResults.ips.isEmpty {
+                    for ip in wsResults.ips {
+                        try Task.checkCancellation()
+                        print("[DEBUG] WS-Discovery found device: \(ip)")
+                        await updateDevice(ipAddress: ip, arpMap: [:], isOnline: true)
+                    }
+                } else {
+                    print("[DEBUG] WS-Discovery returned 0 devices")
+                }
 
                 let arpEntries = await arpEntriesTask
                 let arpMap = arpEntries.reduce(into: [String: String]()) { $0[$1.ipAddress] = $1.macAddress }
@@ -158,11 +164,11 @@ final class ScanViewModel: ObservableObject {
                 let devices = await self.networkScanner.scanSubnet(info: info, concurrency: effectiveConcurrency) { progress in
                     Task { @MainActor in self.progressText = "Port Scan: \(progress.scanned)/\(totalHosts)" }
                 }
-                 for device in devices {
-                     if !alreadyOnlineIPs.contains(device.ipAddress) {
-                         await self.updateDevice(ipAddress: device.ipAddress, arpMap: arpMap, isOnline: true, openPorts: device.openPorts.map { $0.number }, discoverySource: .ping)
-                     }
-                 }
+                for device in devices {
+                    if !alreadyOnlineIPs.contains(device.ipAddress) {
+                        await self.updateDevice(ipAddress: device.ipAddress, arpMap: arpMap, isOnline: true, openPorts: device.openPorts.map { $0.number }, discoverySource: .ping)
+                    }
+                }
 
                 do {
                     let discoveredAfterNIO = Set(self.devices.filter { $0.isOnline }.map { $0.ipAddress })
@@ -181,7 +187,6 @@ final class ScanViewModel: ObservableObject {
                     self.progressText = "Scan complete."
                 }
                 await self.persistToKVS()
-
             } catch {
                 await MainActor.run {
                     self.isScanning = false
@@ -206,16 +211,18 @@ final class ScanViewModel: ObservableObject {
             if devices.contains(where: { $0.id == snap.id }) { continue }
             if devices.contains(where: { $0.macAddress == snap.mac && $0.macAddress != nil }) { continue }
             let discoverySource = snap.discoverySource.flatMap { DiscoverySource(rawValue: $0) } ?? .unknown
+            let cleanedVendor = sanitizeVendor(snap.vendor)
+            let displayName = cleanedVendor ?? snap.hostname ?? snap.ip
             let d = Device(
                 id: snap.id,
-                name: snap.vendor ?? snap.hostname ?? snap.ip,
+                name: displayName,
                 ipAddress: snap.ip,
                 discoverySource: discoverySource,
                 rttMillis: nil,
                 hostname: snap.hostname,
                 macAddress: snap.mac,
                 deviceType: DeviceType(rawValue: snap.deviceType ?? "unknown") ?? .unknown,
-                manufacturer: snap.vendor,
+                manufacturer: cleanedVendor,
                 isOnline: false,
                 services: snap.services,
                 firstSeen: snap.firstSeen,
@@ -302,16 +309,18 @@ final class ScanViewModel: ObservableObject {
                 if devices[idx].name == devices[idx].ipAddress, let nm = snap.name, !nm.isEmpty { devices[idx].name = nm }
             } else {
             let discoverySource = snap.discoverySource.flatMap { DiscoverySource(rawValue: $0) } ?? .unknown
+            let cleanedVendor = sanitizeVendor(snap.vendor)
+            let displayName = cleanedVendor ?? snap.hostname ?? snap.ip
             let d = Device(
                 id: snap.id,
-                name: snap.vendor ?? snap.hostname ?? snap.ip,
+                name: displayName,
                 ipAddress: snap.ip,
                 discoverySource: discoverySource,
                 rttMillis: nil,
                 hostname: snap.hostname,
                 macAddress: snap.mac,
                 deviceType: DeviceType(rawValue: snap.deviceType ?? "unknown") ?? .unknown,
-                manufacturer: snap.vendor,
+                manufacturer: cleanedVendor,
                 isOnline: false,
                 services: snap.services,
                 firstSeen: snap.firstSeen,
@@ -376,8 +385,9 @@ final class ScanViewModel: ObservableObject {
                 }
 
                 if let vendor = vendor, (d.manufacturer == nil || d.manufacturer?.isEmpty == true) {
-                    d.manufacturer = vendor
-                    print("[DEBUG] Set manufacturer for \(d.ipAddress) to: \(vendor)")
+                    let cleaned = sanitizeVendor(vendor) ?? vendor
+                    d.manufacturer = cleaned
+                    print("[DEBUG] Set manufacturer for \(d.ipAddress) to: \(cleaned)")
                 }
 
                 // Store additional device info if available
@@ -410,30 +420,72 @@ final class ScanViewModel: ObservableObject {
         }
 
         updateCounts()
-        // objectWillChange.send() is not needed with @Published properties
-        updateSortedDevices()
-        print("[DEBUG] updateDevice completed for \(ipAddress), devices count: \(devices.count), sortedDevices count: \(sortedDevices.count)")
+         // objectWillChange.send() is not needed with @Published properties
+         updateSortedDevices()
+         print("[DEBUG] updateDevice completed for \(ipAddress), devices count: \(devices.count), sortedDevices count: \(sortedDevices.count)")
 
         if let idx = devices.firstIndex(where: { $0.ipAddress == ipAddress }) {
             let deviceId = devices[idx].id
             let host = devices[idx].hostname
             let vend = devices[idx].manufacturer
             let openPortsCopy = devices[idx].openPorts
-            Task.detached { [weak self] in
-                guard let self = self else { return }
-                let (newType, conf) = await self.classifier.classifyWithConfidence(hostname: host, vendor: vend, openPorts: openPortsCopy)
-                await MainActor.run {
-                    if let found = self.devices.firstIndex(where: { $0.id == deviceId }) {
-                        self.devices[found].deviceType = newType
-                        self.devices[found].confidence = conf
-                        if openPortsCopy.isEmpty { self.startPortScanIfNeeded(for: ipAddress) }
-                    }
-                }
-            }
+            // Task.detached { [weak self] in
+            //     guard let self = self else { return }
+            //     let newType = await self.classifier.classify(hostname: host, vendor: vend, openPorts: openPortsCopy)
+            //     await MainActor.run {
+            //         if let found = self.devices.firstIndex(where: { $0.id == deviceId }) {
+            //             self.devices[found].deviceType = newType
+            //             if openPortsCopy.isEmpty { self.startPortScanIfNeeded(for: ipAddress) }
+            //         }
+            //     }
+            // }
         }
     }
 
-    private func startPortScanIfNeeded(for ip: String) {
+    // Helper: normalize vendor strings for consistent display
+    func sanitizeVendor(_ raw: String?) -> String? {
+        guard var s = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+
+        // Known vendor short names to prefer for display (helps avoid long wrapped names)
+        let lower = s.lowercased()
+        let vendorMap: [String: String] = [
+            "huawei": "Huawei",
+            "huawei technologies": "Huawei",
+            "xiaomi": "Xiaomi",
+            "beijing xiaomi": "Xiaomi",
+            "apple": "Apple",
+            "netgear": "Netgear",
+            "tp-link": "TP-Link",
+            "linksys": "Linksys",
+            "asus": "ASUS",
+            "synology": "Synology",
+            "qnap": "QNAP",
+            "sony": "Sony",
+            "google": "Google",
+            "amazon": "Amazon",
+            "samsung": "Samsung",
+            "lg": "LG",
+            "roku": "Roku",
+            "ubiquiti": "Ubiquiti"
+        ]
+        for (key, val) in vendorMap {
+            if lower.contains(key) { return val }
+        }
+
+        // Remove common corporate suffixes and punctuation (case-insensitive)
+        let pattern = "(?i)\\b(?:co\\.?|company|corporation|corp\\.?|inc\\.?|ltd\\.?|limited|gmbh|pvt\\.?)\\b[\\.,]?"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            s = regex.stringByReplacingMatches(in: s, options: [], range: NSRange(s.startIndex..., in: s), withTemplate: "")
+        }
+        // Collapse multi-space and trim
+        s = s.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.isEmpty { return nil }
+        // Convert to Title Case for nicer UI display (keeps acronyms reasonable)
+        return s.capitalized
+    }
+
+    func startPortScanIfNeeded(for ip: String) {
         guard !portScanInProgress.contains(ip) && !portScanCompleted.contains(ip) else { return }
         portScanInProgress.insert(ip)
 
@@ -501,11 +553,11 @@ final class ScanViewModel: ObservableObject {
                             }
                         }
 
-                        // 3. NTP discovery
-                        if let ntpInfo = await ntpDiscoverer.discoverNTPInfo(for: deviceId2), ntpInfo.isNTPServer {
-                            enhancedServices.append(NetworkService(name: "NTP Server (Stratum \(ntpInfo.stratum ?? 0))", type: .unknown, port: 123))
-                            debugLog("[DEBUG] Found NTP server: stratum \(ntpInfo.stratum ?? 0) for \(deviceId2)")
-                        }
+                        // 3. NTP discovery (commented out - service not implemented)
+                        // if let ntpInfo = await ntpDiscoverer.discoverNTPInfo(for: deviceId2), ntpInfo.isNTPServer {
+                        //     enhancedServices.append(NetworkService(name: "NTP Server (Stratum \(ntpInfo.stratum ?? 0))", type: .unknown, port: 123))
+                        //     debugLog("[DEBUG] Found NTP server: stratum \(ntpInfo.stratum ?? 0) for \(deviceId2)")
+                        // }
 
                         // 4. SSH fingerprinting
                         if let sshInfo = await sshFingerprintService.getSSHInfo(for: deviceId2), let banner = sshInfo.banner {
@@ -530,16 +582,16 @@ final class ScanViewModel: ObservableObject {
                             debugLog("[DEBUG] SSH fingerprint: \(banner) for \(deviceId2)")
                         }
 
-                        // 5. NetBIOS discovery
-                        if let netbiosInfo = await netbiosDiscoverer.discoverInfo(for: deviceId2) {
-                            if let hostname = netbiosInfo.hostname {
-                                if enhancedHostname == nil {
-                                    enhancedHostname = hostname
-                                }
-                                enhancedServices.append(NetworkService(name: "NetBIOS: \(hostname)", type: .unknown, port: nil))
-                            }
-                            debugLog("[DEBUG] Found NetBIOS info for \(deviceId2)")
-                        }
+                        // 5. NetBIOS discovery (commented out - service not implemented)
+                        // if let netbiosInfo = await netbiosDiscoverer.discoverInfo(for: deviceId2) {
+                        //     if let hostname = netbiosInfo.hostname {
+                        //         if enhancedHostname == nil {
+                        //             enhancedHostname = hostname
+                        //         }
+                        //         enhancedServices.append(NetworkService(name: "NetBIOS: \(hostname)", type: .unknown, port: nil))
+                        //     }
+                        //     debugLog("[DEBUG] Found NetBIOS info for \(deviceId2)")
+                        // }
 
                         let (newType, conf) = await self.classifier.classifyWithConfidence(
                             hostname: hostnameCopy,
@@ -582,7 +634,7 @@ final class ScanViewModel: ObservableObject {
         portScanTasks[ip] = task
     }
 
-    private func updateCounts() {
+    func updateCounts() {
         deviceCount = devices.count
         onlineCount = devices.filter { $0.isOnline }.count
         servicesCount = devices.reduce(0) { $0 + $1.services.count }
@@ -590,22 +642,24 @@ final class ScanViewModel: ObservableObject {
     }
 
     // MARK: - Persistence with SwiftData
-    private func fetchDevicesFromDB(markAsOffline: Bool = false) {
+    func fetchDevicesFromDB(markAsOffline: Bool = false) {
         guard let ctx = modelContext else { return }
         Task { @MainActor in
             let fetch = FetchDescriptor<PersistentDevice>()
             let list = try ctx.fetch(fetch)
             self.devices = list.map { persistent in
-                Device(
+                let cleanedVendor = sanitizeVendor(persistent.vendor)
+                let displayName = cleanedVendor ?? persistent.hostname ?? persistent.ipAddress
+                return Device(
                     id: persistent.id,
-                    name: persistent.hostname ?? persistent.ipAddress,
+                    name: displayName,
                     ipAddress: persistent.ipAddress,
                     discoverySource: .unknown,
                     rttMillis: nil,
                     hostname: persistent.hostname,
                     macAddress: persistent.macAddress,
                     deviceType: DeviceType(rawValue: persistent.deviceType ?? "unknown") ?? .unknown,
-                    manufacturer: persistent.vendor,
+                    manufacturer: cleanedVendor,
                     isOnline: !markAsOffline,
                     services: [],
                     firstSeen: persistent.firstSeen,
